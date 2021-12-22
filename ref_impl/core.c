@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
+#define NUM_THREADS 0
 
 //Global Variables
 struct HammingDistanceStruct* HammingDistanceStructNode;
