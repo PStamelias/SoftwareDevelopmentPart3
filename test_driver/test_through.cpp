@@ -104,7 +104,7 @@ void TestSigmod(const char* test_file_str, int time_limit_seconds, FILE* out_fil
 		// fixed bug of last batch
 		int fres=fscanf(test_file, "%c %u ", &ch, &id);
 
-		if(num_cur_results && (EOF==fres || ch=='s' || ch=='e'))
+		/*if(num_cur_results && (EOF==fres || ch=='s' || ch=='e'))
 		{
 			for(i=0;i<num_cur_results;i++)
 			{
@@ -297,12 +297,13 @@ void TestSigmod(const char* test_file_str, int time_limit_seconds, FILE* out_fil
 			fflush(out_file);
 			return;
 		}
+	*/
+		break;
 	}
-
 	v=GetClockTimeInMilliSec()-v;
 
 	DestroyIndex();
-
+	
 	fclose(test_file);
 
 	double throughput=(double)num_processed_docs*1000.0/v;

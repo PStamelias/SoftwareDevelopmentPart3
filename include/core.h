@@ -101,6 +101,53 @@ enum ErrorCode {
 
 typedef enum MatchType MatchType;
 typedef enum ErrorCode ErrorCode;
+typedef char word;
+typedef struct payload_node{
+    QueryID query_id;
+    struct payload_node* next;
+}payload_node;
+struct Info{
+    QueryID query_id;
+    unsigned int match_dist;
+    struct Info* next;
+};
+struct Exact_Root{
+    struct Exact_Node** array;
+    unsigned int entries_counter;
+};
+struct word_RootPtr{
+    int word_length;
+    struct HammingIndex* HammingPtr;   
+};
+typedef struct Index{
+  struct EditNode* root;
+}Index;
+struct HammingIndex{
+    struct HammingNode* root;
+};
+struct HammingDistanceStruct{
+    struct word_RootPtr* word_RootPtrArray;
+};
+struct EditNode{
+  word* wd;
+  int distance;
+  struct Info* start_info;
+  struct EditNode* next;
+  struct EditNode* firstChild;
+};
+struct HammingNode{
+  word* wd;
+  int distance;
+  struct Info* start_info;
+  struct HammingNode* next;
+  struct HammingNode* firstChild;
+};
+struct Exact_Node{
+    word* wd;
+    payload_node* beg;
+    struct Exact_Node* next;
+    struct Exact_Node* prev;
+};
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
@@ -229,8 +276,21 @@ ErrorCode GetNextAvailRes(DocID*         p_doc_id,
                           unsigned int*  p_num_res,
                           QueryID**      p_query_ids);
 
+
+
+
+ErrorCode destroy_Edit_index(Index* ix);
+void destroy_Edit_nodes(struct EditNode* node);
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
+
+
+ErrorCode destroy_hamming_entry_index(struct HammingIndex* ix);
+void destroy_hamming_nodes(struct HammingNode* node);
+
+char** words_ofquery(const char* query_str,int* num);
+
+
 
 #ifdef __cplusplus
 }
