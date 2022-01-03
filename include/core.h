@@ -26,7 +26,7 @@
  *
  * Current version: 1.0 (initial release -- Feb 1, 2013)
  */
-
+#include <pthread.h>
 #ifndef __SIGMOD_CORE_H_
 #define __SIGMOD_CORE_H_
 
@@ -148,6 +148,28 @@ struct Exact_Node{
     struct Exact_Node* next;
     struct Exact_Node* prev;
 };
+typedef struct Job{
+    char Job_Type[15];
+    QueryID query_id;
+    DocID doc_id;
+    char arg[5*MAX_WORD_LENGTH];
+    MatchType match_type;
+    unsigned int match_dist;
+    struct Job* next;
+    struct Job* prev;
+}Job;
+typedef struct Queue{
+    Job* First;
+    Job* Last;
+}Queue;
+typedef struct JobScheduler{
+    int execution_threads;
+    Queue* q;
+    pthread_t* tids;
+    pthread_mutex_t lock1;
+}JobScheduler;
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
@@ -290,6 +312,12 @@ void destroy_hamming_nodes(struct HammingNode* node);
 
 char** words_ofquery(const char* query_str,int* num);
 
+JobScheduler* initialize_scheduler(int execution_threads);
+int submit_job(JobScheduler* sch,Job* j);
+int execute_all_jobs(JobScheduler* sch);
+int wait_all_tasks_finish(JobScheduler* sch);
+int destroy_scheduler(JobScheduler* sch);
+void* threadFunc(void * arg);
 
 
 #ifdef __cplusplus

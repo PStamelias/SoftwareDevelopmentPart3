@@ -1,15 +1,17 @@
 #include "../include/core.h"
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 #include <stdlib.h>
-#define NUM_THREADS 0
-
+#define NUM_THREADS 4
+#define SMALLEST_STACKSZ PTHREAD_STACK_MIN
+#define SMALL_STACK (24*1024)
 //Global Variables
 struct HammingDistanceStruct* HammingDistanceStructNode;
 Index*  BKTreeIndexEdit;
 int bucket_sizeofHashTableExact;
+JobScheduler* JobSchedulerNode;
 struct Exact_Root* HashTableExact;
-
 //used in EditDistance below
 int min(int a, int b, int c){
     int m = a;
@@ -60,6 +62,7 @@ unsigned int HammingDistance(char* a, int na, char* b, int nb)
 
 ErrorCode InitializeIndex(){
 	printf("InitializeIndex\n");
+	JobSchedulerNode=initialize_scheduler(NUM_THREADS);
 	BKTreeIndexEdit=malloc(sizeof(Index));
 	BKTreeIndexEdit->root=NULL;
 	HashTableExact=NULL;
@@ -83,6 +86,7 @@ ErrorCode InitializeIndex(){
 }
 
 ErrorCode DestroyIndex(){
+	destroy_scheduler(JobSchedulerNode);
 	printf("DestroyIndex\n");
 	int HammingIndexSize=(MAX_WORD_LENGTH-MIN_WORD_LENGTH)+1;
 	for(int i=0; i<bucket_sizeofHashTableExact; i++){
@@ -118,24 +122,46 @@ ErrorCode DestroyIndex(){
 
 ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_type, unsigned int match_dist)
 {
-	int words_num=0;
-	char** query_words=words_ofquery(query_str,&words_num);
-	for(int i=0;i<words_num;i++)
-		free(query_words[i]);
-	free(query_words);
-	query_words=NULL;
-	if(query_words!=NULL)
-		return EC_FAIL;
+	Job* JobNode=malloc(sizeof(Job));
+	strcpy(JobNode->Job_Type,"StartQuery");
+	JobNode->query_id=query_id;
+	JobNode->doc_id=-1;
+	JobNode->match_type=match_type;
+	strcpy(JobNode->arg,query_str);
+	JobNode->match_dist=match_dist;
+	JobNode->next=NULL;
+	JobNode->prev=NULL;
+	submit_job(JobSchedulerNode,JobNode);
 	return EC_SUCCESS;
 }
 
 ErrorCode EndQuery(QueryID query_id)
 {
+	Job* JobNode=malloc(sizeof(Job));
+	strcpy(JobNode->Job_Type,"EndQuery");
+	JobNode->query_id=query_id;
+	JobNode->doc_id=-1;
+	JobNode->match_type=-1;
+	strcpy(JobNode->arg,"");
+	JobNode->match_dist=-1;
+	JobNode->next=NULL;
+	JobNode->prev=NULL;
+	submit_job(JobSchedulerNode,JobNode);
 	return EC_SUCCESS;
 }
 
 ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
 {
+	Job* JobNode=malloc(sizeof(Job));
+	strcpy(JobNode->Job_Type,"MatchDocument");
+	JobNode->query_id=-1;
+	JobNode->doc_id=doc_id;
+	JobNode->match_type=-1;
+	strcpy(JobNode->arg,doc_str);
+	JobNode->match_dist=-1;
+	JobNode->next=NULL;
+	JobNode->prev=NULL;
+	submit_job(JobSchedulerNode,JobNode);
 	return EC_SUCCESS;
 }
 
@@ -254,4 +280,56 @@ char** words_ofquery(const char* query_str,int* num){
 		strcpy(returning_array[i],curr_words[i]);
 	*num=coun;
 	return returning_array;
+}
+
+JobScheduler* initialize_scheduler(int execution_threads){
+	JobScheduler* JobSchedulerNode=malloc(sizeof(JobScheduler));
+	JobSchedulerNode->execution_threads=execution_threads;
+	JobSchedulerNode->q=NULL;
+	JobSchedulerNode->q=malloc(sizeof(Queue));
+	JobSchedulerNode->tids=NULL;
+	JobSchedulerNode->tids=malloc(NUM_THREADS*sizeof(pthread_t));
+	if(pthread_mutex_init(&JobSchedulerNode->lock1, NULL) != 0)
+        printf("\n mutex init has failed\n");
+	for(int i=0;i<NUM_THREADS;i++)
+		pthread_create(&JobSchedulerNode->tids[i], NULL, &threadFunc, NULL);
+	return JobSchedulerNode;
+}
+
+int submit_job(JobScheduler* sch,Job* j){
+	pthread_mutex_lock(&JobSchedulerNode->lock1);
+	if(sch->q->First==NULL){
+		sch->q->First=j;
+		sch->q->Last=j;
+	}
+	else{
+		j->next=sch->q->Last;
+		sch->q->Last->prev=j;
+		sch->q->Last=j;
+	}
+    pthread_mutex_unlock(&JobSchedulerNode->lock1);
+	return 0; 
+}
+
+int execute_all_jobs(JobScheduler* sch){
+	return 0;
+}
+
+int wait_all_tasks_finish(JobScheduler* sch){
+	return 0;
+}
+
+int destroy_scheduler(JobScheduler* sch){
+	pthread_mutex_destroy(&JobSchedulerNode->lock1);
+	for(int i=0;i<NUM_THREADS;i++)
+		pthread_join(JobSchedulerNode->tids[i], NULL);
+	free(sch->q);
+	free(sch->tids);
+	free(sch);
+	return 0;
+}
+
+void* threadFunc(void * arg){
+	printf("Hello World\n");
+	return NULL;
 }
