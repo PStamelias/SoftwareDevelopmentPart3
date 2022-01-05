@@ -27,6 +27,7 @@
  * Current version: 1.0 (initial release -- Feb 1, 2013)
  */
 #include <pthread.h>
+#include <stdbool.h>
 #ifndef __SIGMOD_CORE_H_
 #define __SIGMOD_CORE_H_
 
@@ -166,10 +167,23 @@ typedef struct JobScheduler{
     int execution_threads;
     Queue* q;
     pthread_t* tids;
-    pthread_mutex_t lock1;
+    pthread_mutex_t lock1,mutex1;
+    pthread_cond_t con1;
+    bool work_finish;
+    int stage;
+    pthread_barrier_t barrier;
 }JobScheduler;
-
-
+struct Stack_result{
+    struct result* first;
+    struct result* top; 
+    int counter;
+};
+struct result{
+    DocID doc_id;
+    unsigned int result_counter;
+    QueryID* query_id;
+    struct result* next;
+};
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
@@ -312,13 +326,13 @@ void destroy_hamming_nodes(struct HammingNode* node);
 
 char** words_ofquery(const char* query_str,int* num);
 
-JobScheduler* initialize_scheduler(int execution_threads);
+void initialize_scheduler(int execution_threads);
 int submit_job(JobScheduler* sch,Job* j);
 int execute_all_jobs(JobScheduler* sch);
 int wait_all_tasks_finish(JobScheduler* sch);
 int destroy_scheduler(JobScheduler* sch);
 void* threadFunc(void * arg);
-
+void Delete_From_Stack();
 
 #ifdef __cplusplus
 }
