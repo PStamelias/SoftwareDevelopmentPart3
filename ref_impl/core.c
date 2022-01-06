@@ -167,13 +167,11 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 
 ErrorCode EndQuery(QueryID query_id)
 {	
-	//bool found = false;/////////////
+	
 	active_queries--;
 	Delete_Query_from_Active_Queries(query_id);
-	/*check if query exists on ExactHashTable*/
-	//found = 
+	/*check if query exists on ExactHashTable*/ 
 	Check_Exact_Hash_Array(query_id);
-	//if(!found){/////
 	/*check if query exists on EditBKTree*/
 	Check_Edit_BKTree(query_id);
 	/*check if query exists on HammingBKTrees*/
@@ -191,7 +189,7 @@ ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
 	JobNode->query_id=-1;
 	JobNode->doc_id=doc_id;
 	JobNode->match_type=-1;
-	JobNode->words_ofdoc=doc_str;
+	JobNode->words_ofdoc=(char*)doc_str;
 	JobNode->match_dist=-1;
 	JobNode->next=NULL;
 	JobNode->prev=NULL;
@@ -1784,6 +1782,12 @@ int execute_all_jobs(JobScheduler* sch){
 			free(words_oftext[i]);
 		free(words_oftext);
 		free(Final_List);
+	}
+	else if(!strcmp(current_Job->Job_Type,"EndQuery")){
+
+	}
+	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
+
 	}
 	free(current_Job);
 	return 0;
