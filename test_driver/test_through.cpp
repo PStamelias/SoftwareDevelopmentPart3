@@ -297,13 +297,12 @@ void TestSigmod(const char* test_file_str, int time_limit_seconds, FILE* out_fil
 			fflush(out_file);
 			return;
 		}
-		
-		break;
 	}
+
 	v=GetClockTimeInMilliSec()-v;
 
 	DestroyIndex();
-	
+
 	fclose(test_file);
 
 	double throughput=(double)num_processed_docs*1000.0/v;

@@ -26,15 +26,15 @@
  *
  * Current version: 1.0 (initial release -- Feb 1, 2013)
  */
-#include <pthread.h>
-#include <stdbool.h>
+
 #ifndef __SIGMOD_CORE_H_
 #define __SIGMOD_CORE_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#include <stdbool.h>
+#include <pthread.h>
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
@@ -52,6 +52,9 @@ extern "C" {
 
 /// Maximum query length in characters.
 #define MAX_QUERY_LENGTH ((MAX_WORD_LENGTH+1)*MAX_QUERY_WORDS)
+
+///Maximum Matching Distance
+#define MAX_MATCH_DIST 3
 
 
 /// Query ID type.
@@ -80,6 +83,156 @@ enum MatchType {
     */
     MT_EDIT_DIST
 };
+typedef enum MatchType MatchType;
+typedef enum ErrorCode ErrorCode;
+typedef char word;
+typedef struct payload_node{
+    QueryID query_id;
+    struct payload_node* next;
+}payload_node;
+typedef struct Index{
+  struct EditNode* root;
+}Index;
+struct HammingIndex{
+    struct HammingNode* root;
+};
+struct Name_Info{
+  struct Name_Info* next;
+  struct Name* ptr;
+};
+typedef struct entry {
+  word* my_word;
+  payload_node* payload;
+  struct entry* next;
+}Entry;
+typedef struct entry_list{
+  Entry* first_node;
+  Entry* current_node;
+  unsigned int counter;
+}entry_list;
+struct NodeIndex{
+  word* wd;
+  int distance;
+  payload_node* query_list;
+  struct NodeIndex* next;
+  struct NodeIndex* firstChild;
+};
+struct Match_Type_List{
+    Entry* start;
+    Entry* cur;
+    unsigned int counter;
+};
+struct result{
+    DocID doc_id;
+    unsigned int result_counter;
+    QueryID* query_id;
+    struct result* next;
+};
+struct word_node{
+    char* word;
+    struct word_node* next;
+};
+struct Result_Hash_Node{
+    QueryID query_id;
+    unsigned int distinct_words;
+    struct word_node* word_start;
+    struct Result_Hash_Node* next;
+};
+struct Stack_result{
+    struct result* first;
+    struct result* top; 
+    int counter;
+};
+struct Deduplicate_Node{
+    word* the_word;
+    struct Deduplicate_Node* next;
+};
+struct Deduplicate_Hash_Array{
+    struct Deduplicate_Node** array;
+    unsigned int entries_counter;
+};
+struct word_RootPtr{
+    int word_length;
+    struct HammingIndex* HammingPtr;   
+};
+struct HammingDistanceStruct{
+    struct word_RootPtr* word_RootPtrArray;
+};
+struct Exact_Node{
+    word* wd;
+    payload_node* beg;
+    struct Exact_Node* next;
+    struct Exact_Node* prev;
+};
+struct Info{
+    QueryID query_id;
+    unsigned int match_dist;
+    struct Info* next;
+};
+struct Query_Info{
+    QueryID query_id;
+    unsigned int counter_of_distinct_words;
+    struct Query_Info* next;
+};
+struct EditNode{
+  word* wd;
+  int distance;
+  struct Info* start_info;
+  struct EditNode* next;
+  struct EditNode* firstChild;
+};
+struct HammingNode{
+  word* wd;
+  int distance;
+  struct Info* start_info;
+  struct HammingNode* next;
+  struct HammingNode* firstChild;
+};
+struct Exact_Root{
+    struct Exact_Node** array;
+    unsigned int entries_counter;
+};
+
+struct Edit_Stack_Node{
+    struct EditNode* node;
+    struct Edit_Stack_Node* next;
+};
+typedef struct Job{
+    char Job_Type[15];
+    QueryID query_id;
+    DocID doc_id;
+    char arg[5*MAX_WORD_LENGTH];
+    char* words_ofdoc;
+    MatchType match_type;
+    unsigned int match_dist;
+    struct Job* next;
+    struct Job* prev;
+}Job;
+struct Hamming_Stack_Node{
+    struct HammingNode* node;
+    struct Hamming_Stack_Node* next;
+};
+typedef struct Queue{
+    Job* First;
+    Job* Last;
+}Queue;
+typedef struct JobScheduler{
+    int execution_threads;
+    Queue* q;
+    pthread_t* tids;
+    pthread_mutex_t lock1,mutex1;
+    pthread_mutex_t mutex2;
+    pthread_mutex_t mutex4;
+    pthread_cond_t con1;
+    bool work_finish;
+    int stage;
+    pthread_barrier_t barrier;
+}JobScheduler;
+
+extern struct HammingDistanceStruct* HammingDistanceStructNode;
+extern Index*  BKTreeIndexEdit;
+extern struct Exact_Root* HashTableExact;
+extern int bucket_sizeofHashTableExact;
 
 /// Error codes:			
 enum ErrorCode {
@@ -100,90 +253,7 @@ enum ErrorCode {
     EC_FAIL
 };
 
-typedef enum MatchType MatchType;
-typedef enum ErrorCode ErrorCode;
-typedef char word;
-typedef struct payload_node{
-    QueryID query_id;
-    struct payload_node* next;
-}payload_node;
-struct Info{
-    QueryID query_id;
-    unsigned int match_dist;
-    struct Info* next;
-};
-struct Exact_Root{
-    struct Exact_Node** array;
-    unsigned int entries_counter;
-};
-struct word_RootPtr{
-    int word_length;
-    struct HammingIndex* HammingPtr;   
-};
-typedef struct Index{
-  struct EditNode* root;
-}Index;
-struct HammingIndex{
-    struct HammingNode* root;
-};
-struct HammingDistanceStruct{
-    struct word_RootPtr* word_RootPtrArray;
-};
-struct EditNode{
-  word* wd;
-  int distance;
-  struct Info* start_info;
-  struct EditNode* next;
-  struct EditNode* firstChild;
-};
-struct HammingNode{
-  word* wd;
-  int distance;
-  struct Info* start_info;
-  struct HammingNode* next;
-  struct HammingNode* firstChild;
-};
-struct Exact_Node{
-    word* wd;
-    payload_node* beg;
-    struct Exact_Node* next;
-    struct Exact_Node* prev;
-};
-typedef struct Job{
-    char Job_Type[15];
-    QueryID query_id;
-    DocID doc_id;
-    char arg[5*MAX_WORD_LENGTH];
-    MatchType match_type;
-    unsigned int match_dist;
-    struct Job* next;
-    struct Job* prev;
-}Job;
-typedef struct Queue{
-    Job* First;
-    Job* Last;
-}Queue;
-typedef struct JobScheduler{
-    int execution_threads;
-    Queue* q;
-    pthread_t* tids;
-    pthread_mutex_t lock1,mutex1;
-    pthread_cond_t con1;
-    bool work_finish;
-    int stage;
-    pthread_barrier_t barrier;
-}JobScheduler;
-struct Stack_result{
-    struct result* first;
-    struct result* top; 
-    int counter;
-};
-struct result{
-    DocID doc_id;
-    unsigned int result_counter;
-    QueryID* query_id;
-    struct result* next;
-};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
@@ -312,28 +382,63 @@ ErrorCode GetNextAvailRes(DocID*         p_doc_id,
                           unsigned int*  p_num_res,
                           QueryID**      p_query_ids);
 
-
-
-
-ErrorCode destroy_Edit_index(Index* ix);
-void destroy_Edit_nodes(struct EditNode* node);
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
-
+int min(int, int, int);
+void push_stack_edit(struct Edit_Stack_Node**, struct EditNode**);
+struct EditNode* pop_stack_edit(struct Edit_Stack_Node**);
+void push_stack_hamming(struct Hamming_Stack_Node**, struct HammingNode**);
+struct HammingNode* pop_stack_hamming(struct Hamming_Stack_Node**);
+Entry* Put_data(struct Exact_Node* node);
+ErrorCode build_entry_index_Edit(char* word,QueryID query_id,unsigned int match_dist);
+unsigned int hash_interger(unsigned int x);
+struct Match_Type_List*  Exact_Result(char* word);
+struct Match_Type_List* Edit_Result(char* word);
+struct Match_Type_List* Hamming_Result(char* word);
+void Delete_Query_from_Active_Queries(QueryID query_id);
+int NextPrime(int N);
+bool isPrime(int N);
+int hash_number_char(char* symbol,int buckets);
+char** Deduplicate_Method(const char* query_str,int* size);
+ErrorCode destroy_Edit_index(Index* ix);
+void destroy_Edit_nodes(struct EditNode* node);
+struct Deduplicate_Hash_Array* Initialize_Hash_Array(int BucketsHashTable);
+void free_Deduplication_Hash_Array(struct Deduplicate_Hash_Array* hash,int BucketsHashTable);
+void insert_hash_array(struct Deduplicate_Hash_Array** hash,int BucketsHashTable,char* word);
+bool search_hash_array(struct Deduplicate_Hash_Array* hash,int BucketsHashTable,char* word);
+void Exact_Put(char** words,int num,QueryID query_id);
+bool check_if_word_exists(char* word,int bucket_num,QueryID query_id);
+void insert_HashTableExact(const char* word,int bucket_num,QueryID query_id);
+void insert_HashTableExact_V2(struct Exact_Root* head,char* word,int bucket_num,struct payload_node* payload_ptr);
+bool empty_of_payload_nodes(struct Exact_Node* node);
+void Check_Exact_Hash_Array(QueryID query_id);
+void* threadFunc(void * arg);
+ErrorCode build_entry_index_Hamming(char* word,QueryID query_id,unsigned int match_dist);
+void delete_specific_payload(struct Exact_Node** node,QueryID query_id);
+void Hamming_Put(char** words_ofquery,int words_num,QueryID query_id,unsigned int match_dist);
+void Edit_Put(char** words_ofquery,int words_num,QueryID query_id,unsigned int match_dist);
+void Delete_Query_from_Edit_Nodes(struct EditNode* node,QueryID query_id);
+void Check_Edit_BKTree(QueryID query_id);
+void Check_Hamming_BKTrees(QueryID query_id);
+void Delete_Query_from_Hamming_Nodes(struct HammingNode* node,QueryID query_id);
+char** words_ofquery(const char* query_str,int* num);
+QueryID* Put_On_Result_Hash_Array(struct Match_Type_List* en1,int* result_counter);
+void Put_query_on_Active_Queries(QueryID query_id,int words_num);
+void Delete_Result_List(struct Match_Type_List* en);
+void Put_On_Stack_Result(DocID docID,int size,QueryID* query_array);
+void Hash_Put_Result(QueryID q,char* word,struct Result_Hash_Node** rr1);
+void Delete_From_Stack();
+void Free_Active_Queries();
 ErrorCode destroy_hamming_entry_index(struct HammingIndex* ix);
 void destroy_hamming_nodes(struct HammingNode* node);
-
-char** words_ofquery(const char* query_str,int* num);
-
+int EditDistance(char* a, int na, char* b, int nb);
+unsigned int HammingDistance(char* a, int na, char* b, int nb);
 void initialize_scheduler(int execution_threads);
 int submit_job(JobScheduler* sch,Job* j);
 int execute_all_jobs(JobScheduler* sch);
 int wait_all_tasks_finish(JobScheduler* sch);
 int destroy_scheduler(JobScheduler* sch);
-void* threadFunc(void * arg);
-void Delete_From_Stack();
-
 #ifdef __cplusplus
 }
 #endif

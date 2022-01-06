@@ -42,10 +42,10 @@ LIBRARY=core
 all: $(PROGRAMS)
 
 lib: $(IMPL_O)
-	$(CC) $(CXXFLAGS) -shared -o lib$(LIBRARY).so $(IMPL_O)	-pthread
+	$(CC) $(CXXFLAGS) -shared -o lib$(LIBRARY).so $(IMPL_O)
 	
 new-testdriver: lib $(TEST_NEW_O)
-	$(CXX) $(CXXFLAGS) -o testdriver $(TEST_NEW_O) ./lib$(LIBRARY).so 
+	$(CXX) $(CXXFLAGS) -o testdriver $(TEST_NEW_O) ./lib$(LIBRARY).so -lpthread
 
 clean:
 	rm -f testdriver lib$(LIBRARY).so result.txt
