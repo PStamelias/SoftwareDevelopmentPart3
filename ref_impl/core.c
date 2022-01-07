@@ -200,16 +200,18 @@ ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
 	JobNode->prev=NULL;
 	submit_job(JobSchedulerNode,JobNode);
 	printf("MatchDocument End for doc_id=%d\n",doc_id);
-	pthread_cond_broadcast(&JobSchedulerNode->con1);
+	//pthread_cond_broadcast(&JobSchedulerNode->con1);
 	return EC_SUCCESS;
 }
 
 
 ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_query_ids)
 {	
-	pthread_mutex_lock(&Main_Mutex1);
-	pthread_cond_wait(&Main_Cond1,&Main_Mutex1);
-	pthread_mutex_unlock(&Main_Mutex1);
+	if(JobSchedulerNode->Job_Counter!=0){
+		pthread_mutex_lock(&Main_Mutex1);
+		pthread_cond_wait(&Main_Cond1,&Main_Mutex1);
+		pthread_mutex_unlock(&Main_Mutex1);
+	}
 	printf("GetNextAvailRes\n");
 	/*DocID doc=StackArray->top->doc_id;
 	*p_doc_id=doc;
@@ -1750,7 +1752,7 @@ int execute_all_jobs(JobScheduler* sch){
 
 	}
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
-
+		
 	}
 	free(current_Job);
 	return 0;
@@ -1778,9 +1780,10 @@ int destroy_scheduler(JobScheduler* sch){
 	return 0;
 }
 void* threadFunc(void * arg){
-	pthread_mutex_lock(&JobSchedulerNode->lock1);
+	printf("mpika\n");
+	/*pthread_mutex_lock(&JobSchedulerNode->lock1);
 	pthread_cond_wait(&JobSchedulerNode->con1,&JobSchedulerNode->lock1);
-	pthread_mutex_unlock(&JobSchedulerNode->lock1);
+	pthread_mutex_unlock(&JobSchedulerNode->lock1);*/
 	printf("Thread started\n");
 	while(1){
 		if(wait_all_tasks_finish(JobSchedulerNode)==1)
