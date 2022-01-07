@@ -84,7 +84,6 @@ enum MatchType {
     MT_EDIT_DIST
 };
 typedef enum MatchType MatchType;
-typedef enum ErrorCode ErrorCode;
 typedef char word;
 typedef struct payload_node{
     QueryID query_id;
@@ -225,6 +224,7 @@ typedef struct JobScheduler{
     pthread_mutex_t mutex4;
     pthread_cond_t con1;
     bool work_finish;
+    unsigned int Job_Counter;
     int stage;
     pthread_barrier_t barrier;
 }JobScheduler;
@@ -253,7 +253,7 @@ enum ErrorCode {
     EC_FAIL
 };
 
-
+typedef enum ErrorCode ErrorCode;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //*********************************************************************************************
 
