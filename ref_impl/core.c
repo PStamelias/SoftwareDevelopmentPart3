@@ -146,7 +146,6 @@ ErrorCode DestroyIndex(){
 
 ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_type, unsigned int match_dist)
 {
-	//printf("StartQuery query_id=%u\n",query_id);
 	active_queries++;
 	int words_num=0;
 	char** query_words=words_ofquery(query_str,&words_num);
@@ -167,6 +166,7 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	if(query_words!=NULL)
 		return EC_FAIL;
 	/*********************/
+	printf("StartQuery query_id=%u\n",query_id);
 	return EC_SUCCESS;
 }
 
@@ -194,12 +194,14 @@ ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
 	JobNode->query_id=-1;
 	JobNode->doc_id=doc_id;
 	JobNode->match_type=-1;
-	JobNode->words_ofdoc=(char*)doc_str;
+	JobNode->words_ofdoc=malloc((strlen(doc_str)+1)*sizeof(char));
+	strcpy(JobNode->words_ofdoc,doc_str);
+	//(char*)doc_str;
 	JobNode->match_dist=-1;
 	JobNode->next=NULL;
 	JobNode->prev=NULL;
 	submit_job(JobSchedulerNode,JobNode);
-	printf("MatchDocument End for doc_id=%d\n",doc_id);
+	//printf("MatchDocument End for doc_id=%d\n",doc_id);
 	//pthread_cond_broadcast(&JobSchedulerNode->con1);
 	return EC_SUCCESS;
 }
@@ -212,7 +214,10 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 		pthread_cond_wait(&Main_Cond1,&Main_Mutex1);
 		pthread_mutex_unlock(&Main_Mutex1);
 	}
-	printf("GetNextAvailRes\n");
+	printf("------------------------------------GetNextAvailRes\n");
+	pthread_mutex_lock(&JobSchedulerNode->mutex1);
+	Delete_From_Stack();
+	pthread_mutex_unlock(&JobSchedulerNode->mutex1);
 	/*DocID doc=StackArray->top->doc_id;
 	*p_doc_id=doc;
 	unsigned int counter=StackArray->top->result_counter;
@@ -1267,7 +1272,6 @@ struct Match_Type_List* Hamming_Result(char* word){
 	Match_Node->cur=NULL;
 	Match_Node->counter=0;
 	int position = strlen(word) - 4;
-	/*Navigate to right Index*/
 	if(HammingDistanceStructNode->word_RootPtrArray[position].HammingPtr == NULL){
 		return Match_Node;
 	}
@@ -1278,7 +1282,6 @@ struct Match_Type_List* Hamming_Result(char* word){
 	int d, bot, ceil;
 	struct HammingNode* curr;
 	struct Hamming_Stack_Node* candidate_list = NULL;
-	/*push on stack the word of root*/
 	push_stack_hamming(&candidate_list, &tree);
 	struct HammingNode* children = NULL;
 	struct Info* info;
@@ -1289,10 +1292,8 @@ struct Match_Type_List* Hamming_Result(char* word){
 		Entry* s=NULL;
 		d = HammingDistance(word, strlen(word), curr->wd, strlen(curr->wd));
 		while(info != NULL){
-			/*if enter on while loop word is appearing on queryid else not and juct ignore it*/
 			if(d <= info->match_dist){
 				if(enter==false){
-					/*In that case word is mathing for first time */
 					Entry* new_node=malloc(sizeof(Entry));
 					new_node->next=NULL;
 					new_node->my_word=malloc((strlen(curr->wd)+1)*sizeof(char));
@@ -1305,7 +1306,6 @@ struct Match_Type_List* Hamming_Result(char* word){
 					new_node->payload=p_node;
 				}
 				else{
-					/*In that case we juct add the payload*/
 					payload_node* p_node=malloc(sizeof(payload_node));
 					p_node->query_id=info->query_id;
 					p_node->next=NULL;
@@ -1339,7 +1339,6 @@ struct Match_Type_List* Hamming_Result(char* word){
 			bot=d-MAX_MATCH_DIST;
 		ceil = d + MAX_MATCH_DIST;
 		children = curr->firstChild;
-		/*push on stack the childs of Node*/
 		while(children != NULL){
 			if(children->distance >= bot && children->distance <= ceil){
 				push_stack_hamming(&candidate_list, &children);
@@ -1631,7 +1630,6 @@ void Hash_Put_Result(QueryID q,char* word,struct Result_Hash_Node** rr1){
 
 /*Put the result node  that contains a docid and an array of QueryID*/
 void Put_On_Stack_Result(DocID docID,int size,QueryID* query_array){
-	printf("Put_On_Stack_Result\n");
 	struct result* node=malloc(sizeof(struct result));
 	node->doc_id=docID;
 	node->result_counter=size;
@@ -1732,6 +1730,7 @@ int execute_all_jobs(JobScheduler* sch){
 	JobSchedulerNode->Job_Counter--;
 	sch->q->First=sch->q->First->prev;
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
+	int num_result=0;
 	if(!strcmp(current_Job->Job_Type,"MatchDocument")){
 		printf("entering edw me doc_id=%d\n",current_Job->doc_id);
 		struct Match_Type_List* Final_List=malloc(sizeof(struct Match_Type_List));
@@ -1740,6 +1739,49 @@ int execute_all_jobs(JobScheduler* sch){
 		Final_List->counter=0;
 		int words_num=0;
 		char** words_oftext=Deduplicate_Method(current_Job->words_ofdoc,&words_num);
+		for(int i=0;i<words_num;i++){
+			struct Match_Type_List* Exact_Node=Exact_Result(words_oftext[i]);
+			if(Final_List->start==NULL){
+				Final_List->start=Exact_Node->start;
+				Final_List->cur=Exact_Node->cur;
+			}
+			else{
+				if(Exact_Node->start!=NULL){
+					Final_List->cur->next=Exact_Node->start;
+					Final_List->cur=Exact_Node->cur;
+				}
+			}
+			Final_List->counter+=Exact_Node->counter;
+			struct Match_Type_List* Edit_Node=Edit_Result(words_oftext[i]);
+			if(Final_List->start==NULL){
+				Final_List->start=Edit_Node->start;
+				Final_List->cur=Edit_Node->cur;
+			}
+			else{
+				if(Edit_Node->start!=NULL){
+					Final_List->cur->next=Edit_Node->start;
+					Final_List->cur=Edit_Node->cur;
+				}
+			}
+			Final_List->counter+=Edit_Node->counter;
+			struct Match_Type_List* Hamming_Node=Hamming_Result(words_oftext[i]);
+			if(Final_List->start==NULL){
+				Final_List->start=Hamming_Node->start;
+				Final_List->cur=Hamming_Node->cur;
+			}
+			else{
+				if(Hamming_Node->start!=NULL){
+					Final_List->cur->next=Hamming_Node->start;
+					Final_List->cur=Hamming_Node->cur;
+				}
+			}
+			Final_List->counter+=Hamming_Node->counter;
+		}
+		QueryID* query_id_result=Put_On_Result_Hash_Array(Final_List,&num_result);
+		pthread_mutex_lock(&JobSchedulerNode->mutex1);
+		Put_On_Stack_Result(current_Job->doc_id,num_result,query_id_result);
+		pthread_mutex_unlock(&JobSchedulerNode->mutex1);
+		Delete_Result_List(Final_List);
 		for(int i=0;i<words_num;i++)
 			free(words_oftext[i]);
 		free(words_oftext);
@@ -1752,8 +1794,9 @@ int execute_all_jobs(JobScheduler* sch){
 
 	}
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
-		
+
 	}
+	free(current_Job->words_ofdoc);
 	free(current_Job);
 	return 0;
 }
@@ -1780,7 +1823,6 @@ int destroy_scheduler(JobScheduler* sch){
 	return 0;
 }
 void* threadFunc(void * arg){
-	printf("mpika\n");
 	/*pthread_mutex_lock(&JobSchedulerNode->lock1);
 	pthread_cond_wait(&JobSchedulerNode->con1,&JobSchedulerNode->lock1);
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);*/
