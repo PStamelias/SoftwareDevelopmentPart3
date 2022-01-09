@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 4
+#define NUM_THREADS 1
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
@@ -147,6 +147,18 @@ ErrorCode DestroyIndex(){
 
 ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_type, unsigned int match_dist)
 {
+	Job* JobNode=malloc(sizeof(Job));
+	strcpy(JobNode->Job_Type,"StartQuery");
+	JobNode->query_id=query_id;
+	JobNode->doc_id=-1;
+	JobNode->match_type=match_type;
+	JobNode->words_ofdoc=NULL;
+	memset(JobNode->arg,'\0', 5*MAX_WORD_LENGTH*sizeof(char));
+	strcpy(JobNode->arg,query_str);
+	JobNode->match_dist=match_dist;
+	JobNode->next=NULL;
+	JobNode->prev=NULL;
+	//submit_job(JobSchedulerNode,JobNode);
 	active_queries++;
 	int words_num=0;
 	char** query_words=words_ofquery(query_str,&words_num);
@@ -172,7 +184,16 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 
 ErrorCode EndQuery(QueryID query_id)
 {	
-	
+	Job* JobNode=malloc(sizeof(Job));
+	strcpy(JobNode->Job_Type,"EndQuery");
+	JobNode->query_id=query_id;
+	JobNode->doc_id=-1;
+	JobNode->match_type=-1;
+	JobNode->words_ofdoc=NULL;
+	JobNode->match_dist=-1;
+	JobNode->next=NULL;
+	JobNode->prev=NULL;
+	//submit_job(JobSchedulerNode,JobNode);
 	active_queries--;
 	Delete_Query_from_Active_Queries(query_id);
 	/*check if query exists on ExactHashTable*/ 
@@ -1776,9 +1797,10 @@ int execute_all_jobs(JobScheduler* sch){
 			free(words_oftext[i]);
 		free(words_oftext);
 		JobSchedulerNode->Job_Counter--;
+		free(current_Job->words_ofdoc);
+		free(current_Job);
 		if(JobSchedulerNode->Job_Counter==0)
 			pthread_cond_broadcast(&Main_Cond1);
-
 	}
 	else if(!strcmp(current_Job->Job_Type,"EndQuery")){
 
@@ -1786,8 +1808,6 @@ int execute_all_jobs(JobScheduler* sch){
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
 
 	}
-	free(current_Job->words_ofdoc);
-	free(current_Job);
 	return 0;
 }
 
@@ -1813,10 +1833,6 @@ int destroy_scheduler(JobScheduler* sch){
 	return 0;
 }
 void* threadFunc(void * arg){
-	/*pthread_mutex_lock(&JobSchedulerNode->lock1);
-	pthread_cond_wait(&JobSchedulerNode->con1,&JobSchedulerNode->lock1);
-	pthread_mutex_unlock(&JobSchedulerNode->lock1);*/
-	//printf("Thread started\n");
 	while(1){
 		if(wait_all_tasks_finish(JobSchedulerNode)==1)
 			break;
