@@ -1,1 +1,5 @@
 Start Test ...
+Your program has successfully passed all tests.
+Processed Documents = 960 documents.  (all documents are processed)
+Time = 39578 milli-seconds [39s:578ms]
+Throughput = 24.256 documents/second.
