@@ -218,11 +218,15 @@ typedef struct Queue{
 typedef struct JobScheduler{
     int execution_threads;
     Queue* q;
+    int Run;
+    bool enter;
+    int play;
     pthread_t* tids;
     pthread_mutex_t lock1,mutex1;
     pthread_mutex_t mutex2;
     pthread_mutex_t mutex4;
     pthread_cond_t con1;
+    pthread_cond_t con2;
     bool work_finish;
     unsigned int Job_Counter;
     int stage;
@@ -399,6 +403,7 @@ struct Match_Type_List* Hamming_Result(char* word);
 void Delete_Query_from_Active_Queries(QueryID query_id);
 int NextPrime(int N);
 bool isPrime(int N);
+int Do_Work(JobScheduler* sch);
 int hash_number_char(char* symbol,int buckets);
 char** Deduplicate_Method(const char* query_str,int* size);
 ErrorCode destroy_Edit_index(Index* ix);

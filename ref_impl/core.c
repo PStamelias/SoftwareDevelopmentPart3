@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 1
+#define NUM_THREADS 30
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
@@ -20,7 +20,7 @@ struct Stack_result* StackArray;
 pthread_mutex_t Main_Mutex1;
 pthread_cond_t Main_Cond1;
 /*******************/
-
+int num=0;
 
 //used in EditDistance below
 int min(int a, int b, int c){
@@ -105,10 +105,13 @@ ErrorCode InitializeIndex(){
 	if(BKTreeIndexEdit==NULL) return EC_FAIL;
 	if(HashTableExact==NULL) return EC_FAIL;
 	if(HammingDistanceStructNode==NULL) return EC_FAIL;
+	JobSchedulerNode->play=0;
+	execute_all_jobs(JobSchedulerNode);
 	return EC_SUCCESS;
 }
 
 ErrorCode DestroyIndex(){
+	printf("DestroyIndex\n");
 	destroy_scheduler(JobSchedulerNode);
 	int HammingIndexSize=(MAX_WORD_LENGTH-MIN_WORD_LENGTH)+1;
 	/*Free the Exact_Hash_Array Nodes*/
@@ -232,6 +235,8 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 		pthread_cond_wait(&Main_Cond1,&Main_Mutex1);
 		pthread_mutex_unlock(&Main_Mutex1);
 	}
+	if(StackArray->top==NULL)
+		printf("StackArray top null\n");
 	DocID doc=StackArray->top->doc_id;
 	*p_doc_id=doc;
 	unsigned int counter=StackArray->top->result_counter;
@@ -1707,8 +1712,11 @@ void initialize_scheduler(int execution_threads){
     if(pthread_mutex_init(&JobSchedulerNode->mutex1,NULL)!= 0)
         printf("\n mutex init has failed\n");
     pthread_cond_init(&JobSchedulerNode->con1,NULL);
+    pthread_cond_init(&JobSchedulerNode->con2,NULL);
 	for(int i=0;i<NUM_THREADS;i++)
 		pthread_create(&JobSchedulerNode->tids[i], NULL, &threadFunc, NULL);
+	JobSchedulerNode->enter=false;
+
 }
 
 int submit_job(JobScheduler* sch,Job* j){
@@ -1731,7 +1739,7 @@ int submit_job(JobScheduler* sch,Job* j){
 
 
 
-int execute_all_jobs(JobScheduler* sch){
+int Do_Work(JobScheduler* sch){
 	Job* current_Job=NULL;
 	pthread_mutex_lock(&JobSchedulerNode->lock1);
 	current_Job=sch->q->First;
@@ -1743,7 +1751,7 @@ int execute_all_jobs(JobScheduler* sch){
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
 	int num_result=0;
 	if(!strcmp(current_Job->Job_Type,"MatchDocument")){
-		//printf("entering edw me doc_id=%d\n",current_Job->doc_id);
+		printf("MatchDocument with doc_id=%d\n",current_Job->doc_id);
 		struct Match_Type_List* Final_List=malloc(sizeof(struct Match_Type_List));
 		Final_List->start=NULL;
 		Final_List->cur=NULL;
@@ -1797,16 +1805,19 @@ int execute_all_jobs(JobScheduler* sch){
 			free(words_oftext[i]);
 		free(words_oftext);
 		JobSchedulerNode->Job_Counter--;
+		printf("doc_id=%d finished\n",current_Job->doc_id);
 		free(current_Job->words_ofdoc);
 		free(current_Job);
 		if(JobSchedulerNode->Job_Counter==0)
 			pthread_cond_broadcast(&Main_Cond1);
 	}
 	else if(!strcmp(current_Job->Job_Type,"EndQuery")){
-
+		//printf("EndQuery me query_id=%d\n",current_Job->query_id);
+		free(current_Job);
 	}
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
-
+		//printf("StartQuery me query_id=%d\n",current_Job->query_id);
+		free(current_Job);
 	}
 	return 0;
 }
@@ -1820,23 +1831,47 @@ int wait_all_tasks_finish(JobScheduler* sch){
 
 int destroy_scheduler(JobScheduler* sch){
 	JobSchedulerNode->work_finish=true;
-	for(int i=0;i<NUM_THREADS;i++)
-		pthread_join(JobSchedulerNode->tids[i], NULL);
+	int ret;
+	for(int i=0;i<JobSchedulerNode->execution_threads;i++){
+		void* retval;
+		ret=pthread_join(JobSchedulerNode->tids[i], &retval);
+		printf("num=%d\n",num);
+		if (retval == PTHREAD_CANCELED)
+            printf("Error:The thread was canceled - ");
+        printf("i=%d\n",i);
+	}
 	pthread_mutex_destroy(&JobSchedulerNode->lock1);
 	pthread_mutex_destroy(&JobSchedulerNode->mutex1);
 	pthread_mutex_destroy(&JobSchedulerNode->mutex4);
 	pthread_mutex_destroy(&JobSchedulerNode->mutex2);
 	pthread_cond_destroy(&JobSchedulerNode->con1);
+	pthread_cond_destroy(&JobSchedulerNode->con2);
 	free(sch->q);
 	free(sch->tids);
 	free(sch);
 	return 0;
 }
+int execute_all_jobs(JobScheduler* JobSchedulerNode){
+	for(int i=0;i<JobSchedulerNode->execution_threads;i++){
+		printf("i=%d\n",i);
+		JobSchedulerNode->play=1;
+		pthread_cond_signal(&JobSchedulerNode->con2);
+	}
+	return 1;
+}
 void* threadFunc(void * arg){
+	pthread_mutex_lock(&JobSchedulerNode->mutex4);
+    while(!JobSchedulerNode->play){
+    	printf("kollisa\n");
+    	pthread_cond_wait(&JobSchedulerNode->con2,&JobSchedulerNode->mutex4); /* Wait for play signal */
+    }
+	pthread_mutex_unlock(&JobSchedulerNode->mutex4);
+	printf("3ekollisa\n");
 	while(1){
 		if(wait_all_tasks_finish(JobSchedulerNode)==1)
 			break;
-		execute_all_jobs(JobSchedulerNode);
+		Do_Work(JobSchedulerNode);
 	}
+	num++;
 	return NULL;
 }
