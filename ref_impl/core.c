@@ -247,7 +247,7 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 	for(int i=0;i<StackArray->top->result_counter;i++)
 		curr[i]=StackArray->top->query_id[i];
 	*p_query_ids=curr;
-	printf("exit1\n");
+	printf("exit111\n");
 	Delete_From_Stack();
 	pthread_mutex_unlock(&JobSchedulerNode->mutex1);
 	printf("exit2\n");
@@ -1723,6 +1723,7 @@ void initialize_scheduler(int execution_threads){
 }
 
 int submit_job(JobScheduler* sch,Job* j){
+	printf("ena\n");
 	pthread_mutex_lock(&JobSchedulerNode->lock1);
 	JobSchedulerNode->Job_Counter++;
 	if(sch->q->First==NULL){
@@ -1735,6 +1736,7 @@ int submit_job(JobScheduler* sch,Job* j){
 		sch->q->Last=j;
 	}
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
+	printf("dio\n");
 	return 0; 
 }
 
@@ -1744,14 +1746,17 @@ int submit_job(JobScheduler* sch,Job* j){
 
 int Do_Work(JobScheduler* sch){
 	Job* current_Job=NULL;
+	printf("tria\n");
 	pthread_mutex_lock(&JobSchedulerNode->lock1);
 	current_Job=sch->q->First;
 	if(current_Job==NULL){
 		pthread_mutex_unlock(&JobSchedulerNode->lock1);
+		printf("penter\n");
 		return 0;
 	}
 	sch->q->First=sch->q->First->prev;
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
+	printf("tessera\n");
 	int num_result=0;
 	if(!strcmp(current_Job->Job_Type,"MatchDocument")){
 		printf("MatchDocument with doc_id=%d\n",current_Job->doc_id);
@@ -1799,8 +1804,8 @@ int Do_Work(JobScheduler* sch){
 			}
 			Final_List->counter+=Hamming_Node->counter;
 		}
-		printf("enter1\n");
 		QueryID* query_id_result=Put_On_Result_Hash_Array(Final_List,&num_result);
+		printf("enter1\n");
 		pthread_mutex_lock(&JobSchedulerNode->mutex1);
 		Put_On_Stack_Result(current_Job->doc_id,num_result,query_id_result);
 		pthread_mutex_unlock(&JobSchedulerNode->mutex1);
