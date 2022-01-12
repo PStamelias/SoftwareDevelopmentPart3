@@ -1650,6 +1650,7 @@ void Hash_Put_Result(QueryID q,char* word,struct Result_Hash_Node** rr1){
 
 /*Put the result node  that contains a docid and an array of QueryID*/
 void Put_On_Stack_Result(DocID docID,int size,QueryID* query_array){
+	printf("Put_On_Stack_Result\n");
 	struct result* node=malloc(sizeof(struct result));
 	node->doc_id=docID;
 	node->result_counter=size;
@@ -1662,16 +1663,19 @@ void Put_On_Stack_Result(DocID docID,int size,QueryID* query_array){
 	StackArray->counter++;
 	if(StackArray->first==NULL)
 		StackArray->first=node;
+	printf("exodos apo put on stack_result\n");
 }
 
 
 /*Delete the topp node of StackArray*/
 void Delete_From_Stack(){
+	printf("Delete_From_Stack\n");
 	struct result* node=StackArray->top;
 	StackArray->top=StackArray->top->next;
 	if(StackArray->top==NULL)
 		StackArray->first=NULL;
 	StackArray->counter--;
+	printf("Delete_From_Stack exddos\n");
 	free(node->query_id);
 	free(node);
 }
