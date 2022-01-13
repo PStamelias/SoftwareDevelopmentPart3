@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 3
+#define NUM_THREADS 1
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
@@ -238,7 +238,6 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 		while(!play)
 			pthread_cond_wait(&Main_Cond1,&Main_Mutex1);
 		pthread_mutex_unlock(&Main_Mutex1);
-		JobSchedulerNode->Job_Counter=0;
 	}
 	printf("coun=%d\n",StackArray->counter);
 	pthread_mutex_lock(&JobSchedulerNode->mutex1);
@@ -1816,6 +1815,7 @@ int Do_Work(JobScheduler* sch){
 		printf("enter1\n");
 		pthread_mutex_lock(&JobSchedulerNode->mutex1);
 		Put_On_Stack_Result(current_Job->doc_id,num_result,query_id_result);
+		JobSchedulerNode->Job_Counter--;
 		pthread_mutex_unlock(&JobSchedulerNode->mutex1);
 		printf("enter2\n");
 		Delete_Result_List(Final_List);
@@ -1824,7 +1824,6 @@ int Do_Work(JobScheduler* sch){
 		free(words_oftext);
 		free(current_Job->words_ofdoc);
 		free(current_Job);
-		JobSchedulerNode->Job_Counter--;
 		if(JobSchedulerNode->Job_Counter==0){
 			play=1;
 			pthread_cond_broadcast(&Main_Cond1);
