@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 1
+#define NUM_THREADS 3
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
@@ -113,6 +113,9 @@ ErrorCode InitializeIndex(){
 ErrorCode DestroyIndex(){
 	//printf("DestroyIndex\n");
 	destroy_scheduler(JobSchedulerNode);
+	FILE* pFile2 = fopen("re.txt", "a");
+	fprintf(pFile2, "arithmos=%d\n", NUM_THREADS);
+	fclose(pFile2);
 	int HammingIndexSize=(MAX_WORD_LENGTH-MIN_WORD_LENGTH)+1;
 	for(int i=0; i<bucket_sizeofHashTableExact; i++){
 		if(HashTableExact->array[i] == NULL) continue;
@@ -211,7 +214,6 @@ ErrorCode EndQuery(QueryID query_id)
 ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
 {
 	//printf("MatchDocument\n");
-	JobSchedulerNode->stage=1;
 	Job* JobNode=malloc(sizeof(Job));
 	strcpy(JobNode->Job_Type,"MatchDocument");
 	JobNode->query_id=-1;
@@ -236,8 +238,9 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 		while(!play)
 			pthread_cond_wait(&Main_Cond1,&Main_Mutex1);
 		pthread_mutex_unlock(&Main_Mutex1);
+		JobSchedulerNode->Job_Counter=0;
 	}
-	printf("exit get\n");
+	printf("coun=%d\n",StackArray->counter);
 	pthread_mutex_lock(&JobSchedulerNode->mutex1);
 	DocID doc=StackArray->top->doc_id;
 	*p_doc_id=doc;
@@ -1808,6 +1811,7 @@ int Do_Work(JobScheduler* sch){
 			}
 			Final_List->counter+=Hamming_Node->counter;
 		}
+		printf("JobSchedulerNode num=%d\n",JobSchedulerNode->Job_Counter);
 		QueryID* query_id_result=Put_On_Result_Hash_Array(Final_List,&num_result);
 		printf("enter1\n");
 		pthread_mutex_lock(&JobSchedulerNode->mutex1);
