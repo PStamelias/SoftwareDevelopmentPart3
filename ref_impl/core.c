@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 1
+#define NUM_THREADS 5
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
@@ -19,6 +19,8 @@ unsigned int active_queries;
 struct Stack_result* StackArray;
 pthread_mutex_t Main_Mutex1;
 pthread_cond_t Main_Cond1;
+pthread_mutex_t Main_Mutex2;
+pthread_cond_t Main_Cond2;
 /*******************/
 int num=0;
 int play=0;
@@ -163,7 +165,20 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	JobNode->match_dist=match_dist;
 	JobNode->next=NULL;
 	JobNode->prev=NULL;
-	//submit_job(JobSchedulerNode,JobNode);
+	printf("StartQuery\n");
+	printf("JobSchedulerNode=%d\n",JobSchedulerNode->Job_Counter);
+	if(JobSchedulerNode->Job_Counter!=0){
+		JobSchedulerNode->play3=0;
+		printf("kollimeno edw st StartQuery\n");
+		pthread_mutex_lock(&JobSchedulerNode->mutex6);
+		while(!JobSchedulerNode->play3)
+			pthread_cond_wait(&JobSchedulerNode->con5,&JobSchedulerNode->mutex6);
+		pthread_mutex_unlock(&JobSchedulerNode->mutex6);
+	}
+	submit_job(JobSchedulerNode,JobNode);
+	pthread_mutex_lock(&JobSchedulerNode->mutex8);
+	JobSchedulerNode->Coun_St_End++;
+	pthread_mutex_unlock(&JobSchedulerNode->mutex8);
 	active_queries++;
 	int words_num=0;
 	char** query_words=words_ofquery(query_str,&words_num);
@@ -198,7 +213,20 @@ ErrorCode EndQuery(QueryID query_id)
 	JobNode->match_dist=-1;
 	JobNode->next=NULL;
 	JobNode->prev=NULL;
-	//submit_job(JobSchedulerNode,JobNode);
+	printf("Central EndQuery\n");
+	printf("JobSchedulerNode=%d\n",JobSchedulerNode->Job_Counter);
+	if(JobSchedulerNode->Job_Counter!=0){
+		JobSchedulerNode->play3=0;
+		printf("kollimeno edw st EndQuery\n");
+		pthread_mutex_lock(&JobSchedulerNode->mutex6);
+		while(!JobSchedulerNode->play3)
+			pthread_cond_wait(&JobSchedulerNode->con5,&JobSchedulerNode->mutex6);
+		pthread_mutex_unlock(&JobSchedulerNode->mutex6);
+	}
+	pthread_mutex_lock(&JobSchedulerNode->mutex8);
+	JobSchedulerNode->Coun_St_End++;
+	pthread_mutex_unlock(&JobSchedulerNode->mutex8);
+	submit_job(JobSchedulerNode,JobNode);
 	active_queries--;
 	Delete_Query_from_Active_Queries(query_id);
 	/*check if query exists on ExactHashTable*/ 
@@ -224,7 +252,19 @@ ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
 	JobNode->match_dist=-1;
 	JobNode->next=NULL;
 	JobNode->prev=NULL;
+	printf("MatchDocument\n");
+	printf("Coun_St_End=%d\n",JobSchedulerNode->Coun_St_End);
+	if(JobSchedulerNode->Coun_St_End!=0){
+		JobSchedulerNode->play4=0;
+		pthread_mutex_lock(&JobSchedulerNode->mutex5);
+		while(!JobSchedulerNode->play4)
+			pthread_cond_wait(&JobSchedulerNode->con3,&JobSchedulerNode->mutex5);
+		pthread_mutex_unlock(&JobSchedulerNode->mutex5);
+	}
+	JobSchedulerNode->Job_Counter++;
 	submit_job(JobSchedulerNode,JobNode);
+	//pthread_mutex_lock(&JobSchedulerNode->mutex9);
+	//pthread_mutex_unlock(&JobSchedulerNode->mutex9);
 	return EC_SUCCESS;
 }
 
@@ -241,6 +281,7 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 	}
 	printf("coun=%d\n",StackArray->counter);
 	pthread_mutex_lock(&JobSchedulerNode->mutex1);
+	printf("kala eimsate\n");
 	DocID doc=StackArray->top->doc_id;
 	*p_doc_id=doc;
 	unsigned int counter=StackArray->top->result_counter;
@@ -249,10 +290,15 @@ ErrorCode GetNextAvailRes(DocID* p_doc_id, unsigned int* p_num_res, QueryID** p_
 	for(int i=0;i<StackArray->top->result_counter;i++)
 		curr[i]=StackArray->top->query_id[i];
 	*p_query_ids=curr;
-	printf("exit111\n");
 	Delete_From_Stack();
 	pthread_mutex_unlock(&JobSchedulerNode->mutex1);
-	printf("exit2\n");
+	printf("E3odos\n");
+	
+	if(JobSchedulerNode->Job_Counter==0){
+		JobSchedulerNode->play3=1;
+		pthread_cond_broadcast(&JobSchedulerNode->con5);
+	}
+	
 	return EC_SUCCESS;
 }
 
@@ -1652,7 +1698,6 @@ void Hash_Put_Result(QueryID q,char* word,struct Result_Hash_Node** rr1){
 
 /*Put the result node  that contains a docid and an array of QueryID*/
 void Put_On_Stack_Result(DocID docID,int size,QueryID* query_array){
-	printf("Put_On_Stack_Result\n");
 	struct result* node=malloc(sizeof(struct result));
 	node->doc_id=docID;
 	node->result_counter=size;
@@ -1665,19 +1710,16 @@ void Put_On_Stack_Result(DocID docID,int size,QueryID* query_array){
 	StackArray->counter++;
 	if(StackArray->first==NULL)
 		StackArray->first=node;
-	printf("exodos apo put on stack_result\n");
 }
 
 
 /*Delete the topp node of StackArray*/
 void Delete_From_Stack(){
-	printf("Delete_From_Stack\n");
 	struct result* node=StackArray->top;
 	StackArray->top=StackArray->top->next;
 	if(StackArray->top==NULL)
 		StackArray->first=NULL;
 	StackArray->counter--;
-	printf("Delete_From_Stack exddos\n");
 	free(node->query_id);
 	free(node);
 }
@@ -1710,8 +1752,11 @@ void initialize_scheduler(int execution_threads){
 	JobSchedulerNode->q->First=NULL;
 	JobSchedulerNode->q->Last=NULL;
 	JobSchedulerNode->tids=NULL;
+	JobSchedulerNode->Coun_St_End=0;
 	JobSchedulerNode->tids=malloc(NUM_THREADS*sizeof(pthread_t));
 	if(pthread_mutex_init(&JobSchedulerNode->lock1,NULL)!= 0)
+        printf("\n mutex init has failed\n");
+    if(pthread_mutex_init(&JobSchedulerNode->mutex9,NULL)!= 0)
         printf("\n mutex init has failed\n");
     if(pthread_mutex_init(&JobSchedulerNode->mutex4,NULL)!= 0)
         printf("\n mutex init has failed\n");
@@ -1720,8 +1765,16 @@ void initialize_scheduler(int execution_threads){
     JobSchedulerNode->stage=0;
     if(pthread_mutex_init(&JobSchedulerNode->mutex1,NULL)!= 0)
         printf("\n mutex init has failed\n");
+      if(pthread_mutex_init(&JobSchedulerNode->mutex8,NULL)!= 0)
+        printf("\n mutex init has failed\n");
+    if(pthread_mutex_init(&JobSchedulerNode->mutex5,NULL)!= 0)
+        printf("\n mutex init has failed\n");
+    if(pthread_mutex_init(&JobSchedulerNode->mutex6,NULL)!= 0)
+        printf("\n mutex init has failed\n");
     pthread_cond_init(&JobSchedulerNode->con1,NULL);
     pthread_cond_init(&JobSchedulerNode->con2,NULL);
+    pthread_cond_init(&JobSchedulerNode->con3,NULL);
+    pthread_cond_init(&JobSchedulerNode->con5,NULL);
 	for(int i=0;i<NUM_THREADS;i++)
 		pthread_create(&JobSchedulerNode->tids[i], NULL, &threadFunc, NULL);
 	JobSchedulerNode->enter=false;
@@ -1729,9 +1782,7 @@ void initialize_scheduler(int execution_threads){
 }
 
 int submit_job(JobScheduler* sch,Job* j){
-	printf("ena\n");
 	pthread_mutex_lock(&JobSchedulerNode->lock1);
-	JobSchedulerNode->Job_Counter++;
 	if(sch->q->First==NULL){
 		sch->q->First=j;
 		sch->q->Last=j;
@@ -1742,7 +1793,6 @@ int submit_job(JobScheduler* sch,Job* j){
 		sch->q->Last=j;
 	}
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
-	printf("dio\n");
 	return 0; 
 }
 
@@ -1752,17 +1802,14 @@ int submit_job(JobScheduler* sch,Job* j){
 
 int Do_Work(JobScheduler* sch){
 	Job* current_Job=NULL;
-	printf("tria\n");
 	pthread_mutex_lock(&JobSchedulerNode->lock1);
 	current_Job=sch->q->First;
 	if(current_Job==NULL){
 		pthread_mutex_unlock(&JobSchedulerNode->lock1);
-		printf("penter\n");
 		return 0;
 	}
 	sch->q->First=sch->q->First->prev;
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
-	printf("tessera\n");
 	int num_result=0;
 	if(!strcmp(current_Job->Job_Type,"MatchDocument")){
 		printf("MatchDocument with doc_id=%d\n",current_Job->doc_id);
@@ -1812,12 +1859,12 @@ int Do_Work(JobScheduler* sch){
 		}
 		printf("JobSchedulerNode num=%d\n",JobSchedulerNode->Job_Counter);
 		QueryID* query_id_result=Put_On_Result_Hash_Array(Final_List,&num_result);
-		printf("enter1\n");
 		pthread_mutex_lock(&JobSchedulerNode->mutex1);
+		printf("enter here\n");
 		Put_On_Stack_Result(current_Job->doc_id,num_result,query_id_result);
 		JobSchedulerNode->Job_Counter--;
 		pthread_mutex_unlock(&JobSchedulerNode->mutex1);
-		printf("enter2\n");
+		printf("kater\n");
 		Delete_Result_List(Final_List);
 		for(int i=0;i<words_num;i++)
 			free(words_oftext[i]);
@@ -1828,16 +1875,33 @@ int Do_Work(JobScheduler* sch){
 			play=1;
 			pthread_cond_broadcast(&Main_Cond1);
 		}
+		if(JobSchedulerNode->Job_Counter==0){
+			JobSchedulerNode->play3=1;
+			pthread_cond_broadcast(&JobSchedulerNode->con5);
+		}
 	}
 	else if(!strcmp(current_Job->Job_Type,"EndQuery")){
-		//printf("EndQuery me query_id=%d\n",current_Job->query_id);
+		printf("EndQuery me query_id=%d\n",current_Job->query_id);
 		free(current_Job);
+		pthread_mutex_lock(&JobSchedulerNode->mutex8);
+		JobSchedulerNode->Coun_St_End--;
+		pthread_mutex_unlock(&JobSchedulerNode->mutex8);
+		if(JobSchedulerNode->Coun_St_End==0){
+			JobSchedulerNode->play4=1;
+			pthread_cond_broadcast(&JobSchedulerNode->con3);
+		}
 	}
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
-		//printf("StartQuery me query_id=%d\n",current_Job->query_id);
+		printf("StartQuery me query_id=%d\n",current_Job->query_id);
 		free(current_Job);
+		pthread_mutex_lock(&JobSchedulerNode->mutex8);
+		JobSchedulerNode->Coun_St_End--;
+		pthread_mutex_unlock(&JobSchedulerNode->mutex8);
+		if(JobSchedulerNode->Coun_St_End==0){
+			JobSchedulerNode->play4=1;
+			pthread_cond_broadcast(&JobSchedulerNode->con3);
+		}
 	}
-	//printf("exit\n");
 	return 0;
 }
 
@@ -1860,8 +1924,14 @@ int destroy_scheduler(JobScheduler* sch){
 	pthread_mutex_destroy(&JobSchedulerNode->mutex1);
 	pthread_mutex_destroy(&JobSchedulerNode->mutex4);
 	pthread_mutex_destroy(&JobSchedulerNode->mutex2);
+	pthread_mutex_destroy(&JobSchedulerNode->mutex5);
+	pthread_mutex_destroy(&JobSchedulerNode->mutex9);
+	pthread_mutex_destroy(&JobSchedulerNode->mutex6);
+	pthread_mutex_destroy(&JobSchedulerNode->mutex8);
 	pthread_cond_destroy(&JobSchedulerNode->con1);
 	pthread_cond_destroy(&JobSchedulerNode->con2);
+	pthread_cond_destroy(&JobSchedulerNode->con3);
+	pthread_cond_destroy(&JobSchedulerNode->con5);
 	free(sch->q);
 	free(sch->tids);
 	free(sch);
