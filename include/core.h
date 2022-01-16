@@ -456,6 +456,7 @@ void initialize_scheduler(int execution_threads);
 int submit_job(JobScheduler* sch,Job* j);
 int execute_all_jobs(JobScheduler* sch);
 int wait_all_tasks_finish(JobScheduler* sch);
+void quicksort(unsigned int* array,int first,int last);
 int destroy_scheduler(JobScheduler* sch);
 #ifdef __cplusplus
 }
