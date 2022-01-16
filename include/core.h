@@ -90,31 +90,32 @@ typedef struct payload_node{
     struct payload_node* next;
 }payload_node;
 typedef struct Index{
-  struct EditNode* root;
+    pthread_mutex_t edit_mutex;     //one mutex for Edit BK tree
+    struct EditNode* root;
 }Index;
 struct HammingIndex{
     struct HammingNode* root;
 };
 struct Name_Info{
-  struct Name_Info* next;
-  struct Name* ptr;
+    struct Name_Info* next;
+    struct Name* ptr;
 };
 typedef struct entry {
-  word* my_word;
-  payload_node* payload;
-  struct entry* next;
+    word* my_word;
+    payload_node* payload;
+    struct entry* next;
 }Entry;
 typedef struct entry_list{
-  Entry* first_node;
-  Entry* current_node;
-  unsigned int counter;
+    Entry* first_node;
+    Entry* current_node;
+    unsigned int counter;
 }entry_list;
 struct NodeIndex{
-  word* wd;
-  int distance;
-  payload_node* query_list;
-  struct NodeIndex* next;
-  struct NodeIndex* firstChild;
+    word* wd;
+    int distance;
+    payload_node* query_list;
+    struct NodeIndex* next;
+    struct NodeIndex* firstChild;
 };
 struct Match_Type_List{
     Entry* start;
@@ -152,7 +153,8 @@ struct Deduplicate_Hash_Array{
 };
 struct word_RootPtr{
     int word_length;
-    struct HammingIndex* HammingPtr;   
+    struct HammingIndex* HammingPtr;
+    pthread_mutex_t hamming_mutex;    //one mutex for each hamming BK tree
 };
 struct HammingDistanceStruct{
     struct word_RootPtr* word_RootPtrArray;
@@ -188,6 +190,7 @@ struct HammingNode{
   struct HammingNode* firstChild;
 };
 struct Exact_Root{
+    //pthread_mutex_t exact_mutex;    //a mutex for the exact table
     struct Exact_Node** array;
     unsigned int entries_counter;
 };

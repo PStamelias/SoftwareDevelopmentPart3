@@ -6,14 +6,16 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 5
+#define NUM_THREADS 2
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
 Index*  BKTreeIndexEdit;
 JobScheduler* JobSchedulerNode;
 struct Query_Info* ActiveQueries;
+pthread_mutex_t AQ_mutex;		//active queries mutex
 struct Exact_Root* HashTableExact;
+pthread_mutex_t exact_mutex;
 int bucket_sizeofHashTableExact;
 unsigned int active_queries;
 struct Stack_result* StackArray;
@@ -82,14 +84,20 @@ ErrorCode InitializeIndex(){
 	StackArray->first=NULL;
 	StackArray->top=NULL;
 	ActiveQueries=NULL;
+	if(pthread_mutex_init(&AQ_mutex, NULL)!=0)		//initialize active queries mutex
+		printf("\n mutex init has failed\n");
     if(pthread_mutex_init(&Main_Mutex1,NULL)!= 0)
         printf("\n mutex init has failed\n");
     pthread_cond_init(&Main_Cond1,NULL);
 	BKTreeIndexEdit=malloc(sizeof(Index));
+	if(pthread_mutex_init(&(BKTreeIndexEdit->edit_mutex),NULL)!= 0)		//initialize edit mutex
+        printf("\n mutex init has failed\n");
 	BKTreeIndexEdit->root=NULL;
 	HashTableExact=NULL;
 	bucket_sizeofHashTableExact=5;/*starting bucket size of hash array*/
 	HashTableExact=malloc(sizeof(struct Exact_Root));
+	if(pthread_mutex_init(&exact_mutex,NULL)!= 0)		//initialize exact mutex
+        printf("\n mutex init has failed\n");
 	HashTableExact->array=malloc(bucket_sizeofHashTableExact*sizeof(struct Exact_Node*));
 	for(int i=0;i<bucket_sizeofHashTableExact;i++)
 		HashTableExact->array[i]=NULL;
@@ -100,6 +108,8 @@ ErrorCode InitializeIndex(){
 	HammingDistanceStructNode->word_RootPtrArray=malloc(HammingIndexSize*sizeof(struct word_RootPtr));
 	for(int i=0;i<HammingIndexSize;i++){
 		HammingDistanceStructNode->word_RootPtrArray[i].HammingPtr=NULL;
+		if(pthread_mutex_init(&(HammingDistanceStructNode->word_RootPtrArray->hamming_mutex),NULL)!= 0)		//initialize hamming mutex
+        printf("\n mutex init has failed\n");
 		HammingDistanceStructNode->word_RootPtrArray[i].word_length=4+i;
 	}
 	/*******************************/
@@ -143,12 +153,15 @@ ErrorCode DestroyIndex(){
 	Free_Active_Queries();
 	free(StackArray);
 	free(HashTableExact->array);
+	pthread_mutex_destroy(&exact_mutex);		//destroy exact mutex
 	free(HashTableExact);
 	destroy_Edit_index(BKTreeIndexEdit);
-	for(int i=0;i<HammingIndexSize;i++)
+	for(int i=0;i<HammingIndexSize;i++){
 		destroy_hamming_entry_index(HammingDistanceStructNode->word_RootPtrArray[i].HammingPtr);
+		pthread_mutex_destroy(&(HammingDistanceStructNode->word_RootPtrArray[i].hamming_mutex));	//destroy hamming mutex
+	}
 	free(HammingDistanceStructNode->word_RootPtrArray);
-	free(HammingDistanceStructNode);	
+	free(HammingDistanceStructNode);
 	return EC_SUCCESS;
 }
 
@@ -179,13 +192,13 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	pthread_mutex_lock(&JobSchedulerNode->mutex8);
 	JobSchedulerNode->Coun_St_End++;
 	pthread_mutex_unlock(&JobSchedulerNode->mutex8);
-	active_queries++;
+	/*active_queries++;
 	int words_num=0;
 	char** query_words=words_ofquery(query_str,&words_num);
-	/*Return for each query the words*/
+	//Return for each query the words
 	Put_query_on_Active_Queries(query_id,words_num);
-	/*Put specific query to active queries*/
-	/*Add words to specific matching node*/
+	//Put specific query to active queries
+	//Add words to specific matching node
 	if(match_type==0)
 		Exact_Put(query_words,words_num,query_id);
 	else if(match_type==1)
@@ -198,6 +211,7 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	query_words=NULL;
 	if(query_words!=NULL)
 		return EC_FAIL;
+	*/
 	/*********************/
 	return EC_SUCCESS;
 }
@@ -227,15 +241,15 @@ ErrorCode EndQuery(QueryID query_id)
 	JobSchedulerNode->Coun_St_End++;
 	pthread_mutex_unlock(&JobSchedulerNode->mutex8);
 	submit_job(JobSchedulerNode,JobNode);
-	active_queries--;
+	/*active_queries--;
 	Delete_Query_from_Active_Queries(query_id);
-	/*check if query exists on ExactHashTable*/ 
+	//check if query exists on ExactHashTable 
 	Check_Exact_Hash_Array(query_id);
-	/*check if query exists on EditBKTree*/
+	//check if query exists on EditBKTree
 	Check_Edit_BKTree(query_id);
-	/*check if query exists on HammingBKTrees*/
+	//check if query exists on HammingBKTrees
 	Check_Hamming_BKTrees(query_id);
-	///}
+	///}*/
 	return EC_SUCCESS;
 }
 
@@ -454,6 +468,7 @@ char** Deduplicate_Method(const char* query_str,int* size){
 ErrorCode destroy_Edit_index(Index* ix){
 	if(ix==NULL) return EC_SUCCESS;
 	destroy_Edit_nodes(ix->root);
+	pthread_mutex_destroy(&(ix->edit_mutex));	//destroy edit mutex
 	free(ix);
 	ix=NULL;
 	if(ix!=NULL) return EC_FAIL;	
@@ -596,6 +611,7 @@ bool search_hash_array(struct Deduplicate_Hash_Array* hash,int BucketsHashTable,
 
 /*Put each word of query to Exact Hash Struct*/
 void Exact_Put(char** words,int num,QueryID query_id){
+	pthread_mutex_lock(&exact_mutex);
 	for(int i=0;i<num;i++){
 		int bucket_num=hashing(words[i])%bucket_sizeofHashTableExact;
 		bool val1=check_if_word_exists(words[i],bucket_num,query_id);
@@ -633,6 +649,7 @@ void Exact_Put(char** words,int num,QueryID query_id){
 		}
 		else insert_HashTableExact(words[i],bucket_num,query_id);
 	}
+	pthread_mutex_unlock(&exact_mutex);
 }
 
 
@@ -728,6 +745,7 @@ bool check_if_word_exists(char* word,int bucket_num,QueryID query_id){
 
 void Check_Exact_Hash_Array(QueryID query_id){/////void
 	//bool ret = false;//////
+	pthread_mutex_lock(&exact_mutex);
 	for(int i=0;i<bucket_sizeofHashTableExact;i++){
 		struct Exact_Node* start=HashTableExact->array[i];
 		if(start==NULL) continue;
@@ -769,6 +787,7 @@ void Check_Exact_Hash_Array(QueryID query_id){/////void
 				break;
 		}
 	}
+	pthread_mutex_unlock(&exact_mutex);
 	//return ret;////
 }
 
@@ -821,6 +840,7 @@ void Edit_Put(char** words_ofquery,int words_num,QueryID query_id,unsigned int m
 
 
 ErrorCode build_entry_index_Edit(char* word,QueryID query_id,unsigned int match_dist){
+	pthread_mutex_lock(&(BKTreeIndexEdit->edit_mutex));
 	if(BKTreeIndexEdit->root==NULL){
 		struct EditNode* node=NULL;
 		node=malloc(sizeof(struct EditNode));
@@ -906,7 +926,8 @@ ErrorCode build_entry_index_Edit(char* word,QueryID query_id,unsigned int match_
 			break;
 		}
 
-	}	
+	}
+	pthread_mutex_unlock(&(BKTreeIndexEdit->edit_mutex));
 	return EC_SUCCESS;
 }
 
@@ -923,6 +944,7 @@ ErrorCode build_entry_index_Hamming(char* word,QueryID query_id,unsigned int mat
 	int position_of_word=size_of_word-4;
 	struct word_RootPtr* word_ptr=&HammingDistanceStructNode->word_RootPtrArray[position_of_word];
 	/*Navigate to right Index*/
+	pthread_mutex_lock(&(word_ptr->hamming_mutex));
 	if(word_ptr->HammingPtr==NULL){
 		word_ptr->HammingPtr=malloc(sizeof(struct HammingIndex));
 		struct HammingNode* Hnode=NULL;
@@ -1007,6 +1029,7 @@ ErrorCode build_entry_index_Hamming(char* word,QueryID query_id,unsigned int mat
 			break;
 		}
 	}
+	pthread_mutex_unlock(&(word_ptr->hamming_mutex));
 	return EC_SUCCESS;
 }
 
@@ -1014,7 +1037,9 @@ ErrorCode build_entry_index_Hamming(char* word,QueryID query_id,unsigned int mat
 /*Delete from Edit Index the specific query_id*/
 void Check_Edit_BKTree(QueryID query_id){
 	struct EditNode* beg_node=BKTreeIndexEdit->root;
-	Delete_Query_from_Edit_Nodes(beg_node,query_id);		
+	pthread_mutex_lock(&(BKTreeIndexEdit->edit_mutex));
+	Delete_Query_from_Edit_Nodes(beg_node,query_id);
+	pthread_mutex_unlock(&(BKTreeIndexEdit->edit_mutex));		
 }
 
 
@@ -1056,7 +1081,9 @@ void Check_Hamming_BKTrees(QueryID query_id){
 	for(int i=0;i<HammingIndexSize;i++){
 		if(HammingDistanceStructNode->word_RootPtrArray[i].HammingPtr==NULL)
 			continue;
+		pthread_mutex_lock(&(HammingDistanceStructNode->word_RootPtrArray[i].hamming_mutex));
 		Delete_Query_from_Hamming_Nodes(HammingDistanceStructNode->word_RootPtrArray[i].HammingPtr->root,query_id);
+		pthread_mutex_unlock(&(HammingDistanceStructNode->word_RootPtrArray[i].hamming_mutex));
 	}
 }
 
@@ -1420,11 +1447,14 @@ struct Match_Type_List* Hamming_Result(char* word){
 
 
 void Delete_Query_from_Active_Queries(QueryID query_id){
+	pthread_mutex_lock(&AQ_mutex);
+	active_queries--;
 	struct Query_Info* start=ActiveQueries;
 	if(start->query_id==query_id){
 		struct Query_Info* query_node=start->next;
 		free(start);
 		ActiveQueries=query_node;
+		pthread_mutex_unlock(&AQ_mutex);
 		return;
 	}
 	struct Query_Info* next_start=ActiveQueries->next;
@@ -1439,21 +1469,30 @@ void Delete_Query_from_Active_Queries(QueryID query_id){
 			break;
 		next_start=next_start->next;
 	}
+	pthread_mutex_unlock(&AQ_mutex);
 }
 
 
 
 
 void Put_query_on_Active_Queries(QueryID query_id,int words_num){
+	//printf("Put AQ 1\n");
+	pthread_mutex_lock(&AQ_mutex);
+	//printf("Put AQ 2\n");
+	active_queries++;
+	//printf("Put AQ 3\n");
 	struct Query_Info* start=ActiveQueries;
 	struct Query_Info* node=malloc(sizeof(struct Query_Info));
 	node->next=NULL;
 	node->query_id=query_id;
 	node->counter_of_distinct_words=words_num;
+	//printf("Put AQ 4\n");
 	if(start==NULL){
 		ActiveQueries=node;
+		pthread_mutex_unlock(&AQ_mutex);
 		return ;
 	}
+	//printf("Put AQ 5\n");
 	while(1){
 		if(start->next==NULL){
 			start->next=node;
@@ -1461,6 +1500,9 @@ void Put_query_on_Active_Queries(QueryID query_id,int words_num){
 		}
 		start=start->next;
 	}
+	//printf("Put AQ 6\n");
+	pthread_mutex_unlock(&AQ_mutex);
+	//printf("Put AQ 7\n");
 }
 
 
@@ -1882,6 +1924,14 @@ int Do_Work(JobScheduler* sch){
 	}
 	else if(!strcmp(current_Job->Job_Type,"EndQuery")){
 		printf("EndQuery me query_id=%d\n",current_Job->query_id);
+		//active_queries--;
+		Delete_Query_from_Active_Queries(current_Job->query_id);
+		//check if query exists on ExactHashTable 
+		Check_Exact_Hash_Array(current_Job->query_id);
+		//check if query exists on EditBKTree
+		Check_Edit_BKTree(current_Job->query_id);
+		//check if query exists on HammingBKTrees
+		Check_Hamming_BKTrees(current_Job->query_id);
 		free(current_Job);
 		pthread_mutex_lock(&JobSchedulerNode->mutex8);
 		JobSchedulerNode->Coun_St_End--;
@@ -1893,6 +1943,32 @@ int Do_Work(JobScheduler* sch){
 	}
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
 		printf("StartQuery me query_id=%d\n",current_Job->query_id);
+		//active_queries++;//goes in Put_query_on_Active_Queries
+		int words_num=0;
+		//printf("1\n");
+		char** query_words=words_ofquery(current_Job->arg,&words_num);
+		/*Return for each query the words*/
+		//printf("2\n");
+		//printf("id: %d\n", current_Job->query_id);
+		Put_query_on_Active_Queries(current_Job->query_id,words_num);
+		/*Put specific query to active queries*/
+		/*Add words to specific matching node*/
+		//printf("3\n");
+		if(current_Job->match_type==0){
+			//printf("4\n");
+			Exact_Put(query_words,words_num,current_Job->query_id);
+		}else if(current_Job->match_type==1){
+			//printf("5\n");
+			Hamming_Put(query_words,words_num,current_Job->query_id,current_Job->match_dist);
+		}else if(current_Job->match_type==2){
+			//printf("6\n");
+			Edit_Put(query_words,words_num,current_Job->query_id,current_Job->match_dist);
+		}
+		//printf("7\n");
+		for(int i=0;i<words_num;i++)
+			free(query_words[i]);
+		free(query_words);
+		query_words=NULL;
 		free(current_Job);
 		pthread_mutex_lock(&JobSchedulerNode->mutex8);
 		JobSchedulerNode->Coun_St_End--;
@@ -1901,6 +1977,7 @@ int Do_Work(JobScheduler* sch){
 			JobSchedulerNode->play4=1;
 			pthread_cond_broadcast(&JobSchedulerNode->con3);
 		}
+		//printf("8\n");
 	}
 	return 0;
 }
@@ -1916,7 +1993,7 @@ int destroy_scheduler(JobScheduler* sch){
 	JobSchedulerNode->work_finish=true;
 	for(int i=0;i<JobSchedulerNode->execution_threads;i++){
 		void* retval;
-		int ret=pthread_join(JobSchedulerNode->tids[i], &retval);
+		/*int ret=*/pthread_join(JobSchedulerNode->tids[i], &retval);
 		if (retval == PTHREAD_CANCELED)
             printf("Error:The thread was canceled - ");
 	}
