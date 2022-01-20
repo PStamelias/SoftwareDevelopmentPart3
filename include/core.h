@@ -227,21 +227,31 @@ typedef struct JobScheduler{
     int play2;
     int play3;
     int play4;
+    int play_end;
+    int play_start;
     pthread_t* tids;
     pthread_mutex_t lock1,mutex1;
     pthread_mutex_t mutex2;
     pthread_mutex_t mutex4;
     pthread_mutex_t mutex6;
     pthread_mutex_t mutex5;
+    pthread_mutex_t mutex100;
+    pthread_mutex_t mutex300;
+    pthread_mutex_t mutex200;
     pthread_cond_t con1;
     pthread_cond_t con5;
     pthread_mutex_t mutex8;
+    pthread_mutex_t Start_Mutex;
+    pthread_mutex_t End_Mutex;
     pthread_mutex_t mutex9;
     pthread_cond_t con2;
+    pthread_cond_t Start_Cond;
+    pthread_cond_t End_Cond;
     pthread_cond_t con3;
     bool work_finish;
     unsigned int Job_Counter;
-    unsigned int Coun_St_End;
+    unsigned int Start_Counter;
+    unsigned int End_Counter;
     int stage;
     pthread_barrier_t barrier;
 }JobScheduler;
@@ -463,3 +473,4 @@ int destroy_scheduler(JobScheduler* sch);
 #endif
 
 #endif // __SIGMOD_CORE_H_
+
