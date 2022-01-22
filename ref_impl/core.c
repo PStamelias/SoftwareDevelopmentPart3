@@ -122,9 +122,6 @@ ErrorCode InitializeIndex(){
 
 ErrorCode DestroyIndex(){
 	destroy_scheduler(JobSchedulerNode);
-	FILE* pFile2 = fopen("re.txt", "a");
-	fprintf(pFile2, "arithmos=%d\n", NUM_THREADS);
-	fclose(pFile2);
 	int HammingIndexSize=(MAX_WORD_LENGTH-MIN_WORD_LENGTH)+1;
 	for(int i=0; i<bucket_sizeofHashTableExact; i++){
 		if(HashTableExact->array[i] == NULL) continue;

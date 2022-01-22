@@ -253,7 +253,6 @@ typedef struct JobScheduler{
     unsigned int Start_Counter;
     unsigned int End_Counter;
     int stage;
-    pthread_barrier_t barrier;
 }JobScheduler;
 
 extern struct HammingDistanceStruct* HammingDistanceStructNode;

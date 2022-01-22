@@ -61,11 +61,6 @@ int bucket_sizeofHashTableExact;
 unsigned int active_queries;
 struct Stack_result* StackArray;
 
-void test_InitializeIndex(void){
-   ErrorCode ret1=InitializeIndex();
-   TEST_CHECK(ret1!=EC_FAIL);
-
-}
 
 
 
@@ -756,10 +751,10 @@ void test_quicksort(void){
    unsigned int array[5];
    int result = 0;
    array[0] = 8;
-   array[0] = 10;
-   array[0] = 6;
-   array[0] = 5;
-   array[0] = 18;
+   array[1] = 10;
+   array[2] = 6;
+   array[3] = 5;
+   array[4] = 18;
    quicksort(array, 0, 4);
    if(array[0]<array[1]){
       if(array[1]<array[2]){
@@ -777,8 +772,88 @@ void test_quicksort(void){
 
 
 
+void test_MatchDocument(void){
+   const char* doc_str="my string";
+   DocID doc_id=10;
+   JobScheduler* JobSchedulerNode=malloc(sizeof(JobScheduler));
+   JobSchedulerNode->q=malloc(sizeof(Queue));
+   JobSchedulerNode->q->First=NULL;
+   JobSchedulerNode->q->Last=NULL;
+   if(pthread_mutex_init(&JobSchedulerNode->lock1,NULL)!= 0)
+        printf("\n mutex init has failed\n");
+   Job* JobNode=malloc(sizeof(Job));
+   strcpy(JobNode->Job_Type,"MatchDocument");
+   JobNode->query_id=-1;
+   JobNode->doc_id=doc_id;
+   JobNode->match_type=-1;
+   JobNode->words_ofdoc=malloc((strlen(doc_str)+1)*sizeof(char));
+   strcpy(JobNode->words_ofdoc,doc_str);
+   JobNode->match_dist=-1;
+   JobNode->next=NULL;
+   JobNode->prev=NULL;
+   JobSchedulerNode->Job_Counter++;
+   JobSchedulerNode->q->First=JobNode;
+   JobSchedulerNode->q->Last=JobNode;
+   int val1=strcmp(JobSchedulerNode->q->First->Job_Type,"MatchDocument");
+   DocID doc2=JobSchedulerNode->q->First->doc_id;
+   const char* str3=JobSchedulerNode->q->First->words_ofdoc;
+   int val2=strcmp(JobSchedulerNode->q->First->words_ofdoc,doc_str);
+   TEST_CHECK(val1==0);
+   TEST_CHECK(doc2==doc_id);
+   TEST_CHECK(val2==0);
+   pthread_mutex_destroy(&JobSchedulerNode->lock1);
+}
 
+void test_DoWork(void){
+   const char* doc_str="my string";
+   DocID doc_id=10;
+   JobScheduler* JobSchedulerNode=malloc(sizeof(JobScheduler));
+   JobSchedulerNode->q=malloc(sizeof(Queue));
+   JobSchedulerNode->q->First=NULL;
+   JobSchedulerNode->q->Last=NULL;
+   if(pthread_mutex_init(&JobSchedulerNode->lock1,NULL)!= 0)
+      printf("\n mutex init has failed\n");
+   Job* JobNode=malloc(sizeof(Job));
+   strcpy(JobNode->Job_Type,"MatchDocument");
+   JobNode->query_id=-1;
+   JobNode->doc_id=doc_id;
+   JobNode->match_type=-1;
+   JobNode->words_ofdoc=malloc((strlen(doc_str)+1)*sizeof(char));
+   strcpy(JobNode->words_ofdoc,doc_str);
+   JobNode->match_dist=-1;
+   JobNode->next=NULL;
+   JobNode->prev=NULL;
+   JobSchedulerNode->Job_Counter++;
+   JobSchedulerNode->q->First=JobNode;
+   JobSchedulerNode->q->Last=JobNode;
+   const char* doc_str1="my string1";
+   DocID doc_id1=20;
+   Job* JobNode1=malloc(sizeof(Job));
+   strcpy(JobNode1->Job_Type,"MatchDocument");
+   JobNode1->query_id=-1;
+   JobNode1->doc_id=doc_id1;
+   JobNode1->match_type=-1;
+   JobNode1->words_ofdoc=malloc((strlen(doc_str1)+1)*sizeof(char));
+   strcpy(JobNode1->words_ofdoc,doc_str1);
+   JobNode1->match_dist=-1;
+   JobSchedulerNode->Job_Counter++;
+   JobNode1->next=JobSchedulerNode->q->Last;
+   JobSchedulerNode->q->Last->prev=JobNode1;
+   JobSchedulerNode->q->Last=JobNode1;
+   printf("mitsos\n");
+   Do_Work(JobSchedulerNode);
+   Do_Work(JobSchedulerNode);
+   printf("mitsos2\n");
+   TEST_CHECK(JobSchedulerNode->Job_Counter==0);
+}
 
+void test_InitializeIndex(void){
+   
+}
+
+void test_DestroyIndex(void){
+
+}
 
 TEST_LIST = {
    {"Delete_Result_List",test_Delete_Result_List},/*- cannot check why its impossible to check if memeory freed*/
@@ -787,6 +862,9 @@ TEST_LIST = {
    {"Hash_Put_Result",test_Hash_Put_Result},
    {"EditDistance",test_EditDistance},
    {"isPrime",test_isPrime},
+   {"MatchDocument",test_MatchDocument},
+   {"DoWork",test_DoWork},
+   {"DestroyIndex",test_DestroyIndex},
    {"Initialize_Hash_Array",test_Initialize_Hash_Array},
    {"HammingDistance",test_HammingDistance},
    {"EditPut-build_entry_index_Edit-destroy_Edit_index",test_EditPut_build_entry_index_Edit_destroy_Edit_index},
