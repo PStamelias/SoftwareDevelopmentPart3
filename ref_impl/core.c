@@ -2029,32 +2029,32 @@ int wait_all_tasks_finish(JobScheduler* sch){
 }
 
 int destroy_scheduler(JobScheduler* sch){
-	JobSchedulerNode->work_finish=true;
-	for(int i=0;i<JobSchedulerNode->execution_threads;i++){
+	sch->work_finish=true;
+	for(int i=0;i<sch->execution_threads;i++){
 		void* retval;
-		pthread_join(JobSchedulerNode->tids[i], &retval);
+		pthread_join(sch->tids[i], &retval);
 		if (retval == PTHREAD_CANCELED)
             printf("Error:The thread was canceled - ");
 	}
-	pthread_mutex_destroy(&JobSchedulerNode->lock1);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex1);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex100);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex200);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex4);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex300);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex2);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex5);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex9);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex6);
-	pthread_mutex_destroy(&JobSchedulerNode->mutex8);
-	pthread_mutex_destroy(&JobSchedulerNode->Start_Mutex);
-	pthread_mutex_destroy(&JobSchedulerNode->End_Mutex);
-	pthread_cond_destroy(&JobSchedulerNode->Start_Cond);
-	pthread_cond_destroy(&JobSchedulerNode->End_Cond);
-	pthread_cond_destroy(&JobSchedulerNode->con1);
-	pthread_cond_destroy(&JobSchedulerNode->con2);
-	pthread_cond_destroy(&JobSchedulerNode->con3);
-	pthread_cond_destroy(&JobSchedulerNode->con5);
+	pthread_mutex_destroy(&sch->lock1);
+	pthread_mutex_destroy(&sch->mutex1);
+	pthread_mutex_destroy(&sch->mutex100);
+	pthread_mutex_destroy(&sch->mutex200);
+	pthread_mutex_destroy(&sch->mutex4);
+	pthread_mutex_destroy(&sch->mutex300);
+	pthread_mutex_destroy(&sch->mutex2);
+	pthread_mutex_destroy(&sch->mutex5);
+	pthread_mutex_destroy(&sch->mutex9);
+	pthread_mutex_destroy(&sch->mutex6);
+	pthread_mutex_destroy(&sch->mutex8);
+	pthread_mutex_destroy(&sch->Start_Mutex);
+	pthread_mutex_destroy(&sch->End_Mutex);
+	pthread_cond_destroy(&sch->Start_Cond);
+	pthread_cond_destroy(&sch->End_Cond);
+	pthread_cond_destroy(&sch->con1);
+	pthread_cond_destroy(&sch->con2);
+	pthread_cond_destroy(&sch->con3);
+	pthread_cond_destroy(&sch->con5);
 	free(sch->q);
 	free(sch->tids);
 	free(sch);
