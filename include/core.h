@@ -260,6 +260,7 @@ extern struct HammingDistanceStruct* HammingDistanceStructNode;
 extern Index*  BKTreeIndexEdit;
 extern struct Exact_Root* HashTableExact;
 extern int bucket_sizeofHashTableExact;
+extern JobScheduler* JobSchedulerNode;
 
 /// Error codes:			
 enum ErrorCode {

@@ -1,1 +1,6 @@
 arithmos=3
+arithmos=1
+arithmos=1
+arithmos=2
+arithmos=2
+arithmos=3

@@ -716,6 +716,63 @@ void test_Put_data(void){
    TEST_CHECK(found==3);
 }
 
+void test_initialize_scheduler(void){
+   int execution_threads = 5;
+   bool result = false;
+   initialize_scheduler(execution_threads);
+   if(JobSchedulerNode != NULL && JobSchedulerNode->execution_threads==execution_threads && JobSchedulerNode->q != NULL && JobSchedulerNode->tids != NULL){
+      result = true;
+   }
+   TEST_CHECK(result == true);
+}
+
+void test_destroy_scheduler(void){
+   initialize_scheduler(5);
+   destroy_scheduler(JobSchedulerNode);
+   TEST_CHECK(JobSchedulerNode == NULL);
+}
+
+void test_submit_job(void){
+   bool result = true;
+   initialize_scheduler(2);
+   Job Jobs[3];
+   for(int i=0; i<3; i++){
+      Jobs[i].query_id = i+1;
+      submit_job(JobSchedulerNode, &(Jobs[i]));
+   }
+   Job* temp = JobSchedulerNode->q->First;
+   int i = 1;
+   while(temp != NULL){
+      if(temp->query_id != i){
+         result = false;
+      }
+      i++;
+      temp = temp->prev;
+   }
+   TEST_CHECK(result == true);
+}
+
+void test_quicksort(void){
+   unsigned int array[5];
+   int result = 0;
+   array[0] = 8;
+   array[0] = 10;
+   array[0] = 6;
+   array[0] = 5;
+   array[0] = 18;
+   quicksort(array, 0, 4);
+   if(array[0]<array[1]){
+      if(array[1]<array[2]){
+         if(array[2]<array[3]){
+            if(array[3]<array[4]){
+               result = 1;
+            }
+         }
+      }
+   }
+   TEST_CHECK(result==1);
+}
+
 
 
 
@@ -752,5 +809,9 @@ TEST_LIST = {
    {"empty_of_payload_nodes",test_empty_of_payload_nodes},
    //{"free_Deduplication_Hash_Array",test_free_Deduplication_Hash_Array}, - cannot check why its impossible to check if memeory freed
    {"Delete_Query_from_Active_Queries",test_Delete_Query_from_Active_Queries},
+   {"initilize_scheduler",test_initialize_scheduler},
+   {"destroy_scheduler",test_destroy_scheduler},
+   {"submit_job",test_submit_job},
+   {"quicksort",test_quicksort},
    { NULL,NULL }
 };

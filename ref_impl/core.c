@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <pthread.h>
-#define NUM_THREADS 1
+#define NUM_THREADS 3
 
 /*Global Variables*/
 struct HammingDistanceStruct* HammingDistanceStructNode;
@@ -163,7 +163,8 @@ ErrorCode DestroyIndex(){
 }
 
 ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_type, unsigned int match_dist)
-{
+{	
+	/*
 	Job* JobNode=malloc(sizeof(Job));
 	strcpy(JobNode->Job_Type,"StartQuery");
 	JobNode->query_id=query_id;
@@ -197,7 +198,8 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	JobSchedulerNode->Start_Counter++;
 	pthread_mutex_unlock(&JobSchedulerNode->mutex100);
 	submit_job(JobSchedulerNode,JobNode);
-	/*active_queries++;
+	*/
+	active_queries++;
 	int words_num=0;
 	char** query_words=words_ofquery(query_str,&words_num);
 	//Return for each query the wordsS
@@ -216,13 +218,13 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	query_words=NULL;
 	if(query_words!=NULL)
 		return EC_FAIL;
-	*/
 	/*********************/
 	return EC_SUCCESS;
 }
 
 ErrorCode EndQuery(QueryID query_id)
 {	
+	/*
 	Job* JobNode=malloc(sizeof(Job));
 	strcpy(JobNode->Job_Type,"EndQuery");
 	JobNode->query_id=query_id;
@@ -254,7 +256,8 @@ ErrorCode EndQuery(QueryID query_id)
 	JobSchedulerNode->End_Counter++;
 	pthread_mutex_unlock(&JobSchedulerNode->mutex200);
 	submit_job(JobSchedulerNode,JobNode);
-	/*active_queries--;
+	*/
+	active_queries--;
 	Delete_Query_from_Active_Queries(query_id);
 	//check if query exists on ExactHashTable 
 	Check_Exact_Hash_Array(query_id);
@@ -262,7 +265,6 @@ ErrorCode EndQuery(QueryID query_id)
 	Check_Edit_BKTree(query_id);
 	//check if query exists on HammingBKTrees
 	Check_Hamming_BKTrees(query_id);
-	///}*/
 	return EC_SUCCESS;
 }
 
@@ -1908,7 +1910,6 @@ int Do_Work(JobScheduler* sch){
 	pthread_mutex_unlock(&JobSchedulerNode->lock1);
 	int num_result=0;
 	if(!strcmp(current_Job->Job_Type,"MatchDocument")){
-		////printf("MatchDocument with doc_id=%d\n",current_Job->doc_id);
 		struct Match_Type_List* Final_List=malloc(sizeof(struct Match_Type_List));
 		Final_List->start=NULL;
 		Final_List->cur=NULL;
@@ -1965,10 +1966,6 @@ int Do_Work(JobScheduler* sch){
 			play=0;
 			pthread_cond_broadcast(&Main_Cond1);
 			pthread_mutex_unlock(&Main_Mutex1);
-			/*pthread_mutex_lock(&JobSchedulerNode->mutex6);
-			JobSchedulerNode->play3=0;
-			pthread_cond_broadcast(&JobSchedulerNode->con5);
-			pthread_mutex_unlock(&JobSchedulerNode->mutex6);*/
 		}
 		pthread_mutex_unlock(&JobSchedulerNode->mutex300);
 		Delete_Result_List(Final_List);
@@ -1977,10 +1974,8 @@ int Do_Work(JobScheduler* sch){
 		free(words_oftext);
 		free(current_Job->words_ofdoc);
 		free(current_Job);
-		////printf("JobSchedulerNode num=%d\n",JobSchedulerNode->Job_Counter);
-	}
+	}/*
 	else if(!strcmp(current_Job->Job_Type,"EndQuery")){
-		printf("EndQuery me query_id=%d\n",current_Job->query_id);
 		Delete_Query_from_Active_Queries(current_Job->query_id);
 		Check_Exact_Hash_Array(current_Job->query_id);
 		Check_Edit_BKTree(current_Job->query_id);
@@ -1989,32 +1984,20 @@ int Do_Work(JobScheduler* sch){
 		pthread_mutex_lock(&JobSchedulerNode->mutex200);
 		JobSchedulerNode->End_Counter--;
 		if(JobSchedulerNode->End_Counter==0){
-			//printf("JobSchedulerNode->play_end=%d\n",JobSchedulerNode->play_end);
-			////printf("JobSchedulerNode->play_end=%d\n",JobSchedulerNode->play_end);
 			pthread_mutex_lock(&JobSchedulerNode->End_Mutex);
 			JobSchedulerNode->play_end=0;
 			pthread_cond_signal(&JobSchedulerNode->End_Cond);
 			pthread_mutex_unlock(&JobSchedulerNode->End_Mutex);
-			//pthread_cond_signal(&JobSchedulerNode->End_Cond);
-			/*JobSchedulerNode->play_end=0;
-			pthread_cond_broadcast(&JobSchedulerNode->End_Cond);*/
-			/*JobSchedulerNode->play4=1;
-			pthread_cond_broadcast(&JobSchedulerNode->con3);*/
 		}
 		pthread_mutex_unlock(&JobSchedulerNode->mutex200);
-		////printf("JobSchedulerNode-End_Counter=%d\n",JobSchedulerNode->End_Counter);
-		////printf("EndQuery me query_id=%d\n",current_Job->query_id);
 	}
 	else if(!strcmp(current_Job->Job_Type,"StartQuery")){
-		printf("StartQuery me query_id=%d\n",current_Job->query_id);
-		//active_queries++;//goes in Put_query_on_Active_Queries
 		int words_num=0;
 		char** query_words=words_ofquery(current_Job->arg,&words_num);
-		/*Return for each query the words*/
-		//printf("id: %d\n", current_Job->query_id);
+		//Return for each query the words
 		Put_query_on_Active_Queries(current_Job->query_id,words_num);
-		/*Put specific query to active queries*/
-		/*Add words to specific matching node*/
+		//Put specific query to active queries
+		//Add words to specific matching node
 		if(current_Job->match_type==0){
 			Exact_Put(query_words,words_num,current_Job->query_id);
 		}else if(current_Job->match_type==1){
@@ -2034,13 +2017,10 @@ int Do_Work(JobScheduler* sch){
 			JobSchedulerNode->play_start=0;
 			pthread_cond_signal(&JobSchedulerNode->Start_Cond);
 			pthread_mutex_unlock(&JobSchedulerNode->Start_Mutex);
-			printf("sto anoigma exei tihmh=%d\n",JobSchedulerNode->play_start);
-			//pthread_cond_signal(&JobSchedulerNode->Start_Cond);
 		}
 		pthread_mutex_unlock(&JobSchedulerNode->mutex100);
-		////printf("JobSchedulerNode-->Start_Counter=%d\n",JobSchedulerNode->Start_Counter);
-		////printf("StartQuery me query_id=%d\n",current_Job->query_id);
 	}
+	*/
 	return 0;
 }
 
