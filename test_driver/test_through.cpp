@@ -323,10 +323,10 @@ int main(int argc, char* argv[])
 {
 #ifdef TEST_MACHINE
 	FILE* out_file=fopen("result.txt", "wt");
-	if(argc<=1) TestSigmod("./test_data/small_test.txt", 60, out_file);
+	if(argc<=1) TestSigmod("./test_data/input30m.txt", 60, out_file);
 #else
 	FILE* out_file=stdout;
-	if(argc<=1) TestSigmod("small_test.txt", 0, out_file);
+	if(argc<=1) TestSigmod("input30m.txt", 0, out_file);
 	//if(argc<=1) TestSigmod("large_test.txt", 60, out_file);
 	//if(argc<=1) TestSigmod("huge_test.txt", 120, out_file);
 #endif

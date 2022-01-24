@@ -724,7 +724,32 @@ void test_initialize_scheduler(void){
 
 void test_destroy_scheduler(void){
    initialize_scheduler(5);
-   destroy_scheduler(JobSchedulerNode);
+
+
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->lock1) == 0);
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->mutex1) == 0);
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->mutex100) == 0);
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->mutex200) == 0);
+
+
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->mutex300) == 0);
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->Start_Mutex) == 0);
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->mutex2) == 0);
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->mutex5) == 0);
+   
+   TEST_CHECK(pthread_mutex_destroy(&JobSchedulerNode->End_Mutex) == 0);
+  
+   TEST_CHECK(pthread_cond_destroy(&JobSchedulerNode->con1)==0);
+   TEST_CHECK(pthread_cond_destroy(&JobSchedulerNode->con3)==0);
+   TEST_CHECK(pthread_cond_destroy(&JobSchedulerNode->con5)==0);
+   free(JobSchedulerNode->q);
+   free(JobSchedulerNode->tids);
+   
+   TEST_CHECK(pthread_cond_destroy(&JobSchedulerNode->Start_Cond)==0);
+   TEST_CHECK(pthread_cond_destroy(&JobSchedulerNode->End_Cond)==0);
+   free(JobSchedulerNode);
+
+   JobSchedulerNode=NULL;
    TEST_CHECK(JobSchedulerNode == NULL);
 }
 

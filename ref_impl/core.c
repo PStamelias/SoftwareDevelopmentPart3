@@ -196,6 +196,7 @@ ErrorCode StartQuery(QueryID query_id, const char* query_str, MatchType match_ty
 	pthread_mutex_unlock(&JobSchedulerNode->mutex100);
 	submit_job(JobSchedulerNode,JobNode);
 	*/
+	printf("StartQuery me QueryId=%d\n",query_id);
 	active_queries++;
 	int words_num=0;
 	char** query_words=words_ofquery(query_str,&words_num);
@@ -254,6 +255,7 @@ ErrorCode EndQuery(QueryID query_id)
 	pthread_mutex_unlock(&JobSchedulerNode->mutex200);
 	submit_job(JobSchedulerNode,JobNode);
 	*/
+	printf("EndQuery me QueryId=%d\n",query_id);
 	active_queries--;
 	Delete_Query_from_Active_Queries(query_id);
 	//check if query exists on ExactHashTable 
@@ -266,7 +268,8 @@ ErrorCode EndQuery(QueryID query_id)
 }
 
 ErrorCode MatchDocument(DocID doc_id, const char* doc_str)
-{
+{	
+	printf("MatchDocument me docID=%d\n",doc_id);
 	/*printf("JobSchedulerNode->Job_Counter=%d\n",JobSchedulerNode->Job_Counter);*/
 	Job* JobNode=malloc(sizeof(Job));
 	strcpy(JobNode->Job_Type,"MatchDocument");
@@ -2058,6 +2061,7 @@ int destroy_scheduler(JobScheduler* sch){
 	free(sch->q);
 	free(sch->tids);
 	free(sch);
+	sch=NULL;
 	return 0;
 }
 
